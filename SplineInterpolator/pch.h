@@ -9,5 +9,7 @@
 
 // add headers that you want to pre-compile here
 #include "framework.h"
+#include <gsl/gsl_permutation.h>
+#include <gsl/gsl_linalg.h>
 
 #endif //PCH_H

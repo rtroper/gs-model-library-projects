@@ -119,21 +119,82 @@ bool SplineInterpolator::initialize_lhs_and_rhs()
 	return success;
 }
 
+bool SplineInterpolator::calculate_derivatives()
+{
+	// Default return value is true
+	bool success = true;
+
+	// Define integer for error returns
+	int status = 0;
+
+	// Create and initialize LU, a matrix to store LU decomposition when solving for derivatives
+	gsl_matrix* LU = gsl_matrix_alloc(size_data + 2, size_data + 2);
+	status = gsl_matrix_memcpy(LU, lhs);
+	if (status) return false;	// Add code for proper error handling/messaging
+
+	// Create permutation vector to store permutation
+	gsl_permutation* p = gsl_permutation_calloc(size_data + 2);
+
+	// Create pointer to int for third argument to LU decomposition function
+	int* signum = new int(0);
+
+	// Get the LU decomposition
+	status = gsl_linalg_LU_decomp(LU, p, signum);
+	if (status) return false;	// Add code for proper error handling/messaging
+
+	// Initialize D (to store results of LU solve)
+	D = gsl_vector_calloc(size_data + 2);
+
+	// Solve for D
+	const gsl_vector* rhs_const = rhs;
+	status = gsl_linalg_LU_solve(LU, p, rhs, D);
+	if (status) return false;	// Add code for proper error handling/messaging
+
+	return success;
+}
+
+bool SplineInterpolator::initialize_interpolator(const double* x_source, int x_size, const double* y_source, int y_size)
+{
+	// Default return value is true
+	bool success = true;
+
+	// Store data and calculate intervals h
+	success = store_input_data(x_source, x_size, y_source, y_size);
+	if (!success) return success;	// Add code for proper error handling/messaging
+
+	// Initialize left-hand-side matrix and right-hand-side vector used to calculate derivatives
+	success = initialize_lhs_and_rhs();
+	if (!success) return success;	// Add code for proper error handling/messaging
+
+	// Calculate derivatives at all data points (to be used in calculating a, b, c, and d parameters)
+	success = calculate_derivatives();
+	if (!success) return success;	// Add code for proper error handling/messaging
+
+	return success;
+}
+
 SplineInterpolator::SplineInterpolator(const std::vector<double>& x_source, const std::vector<double>& y_source)
 {
 	// Get sizes of source data
 	int x_size = static_cast<int>(x_source.size());
 	int y_size = static_cast<int>(y_source.size());
 
-	// Simply call constructor that uses C-style arrays
-	SplineInterpolator(x_source.data(), x_size, y_source.data(), y_size);
+	// Call initialization function that uses C-style arrays
+	initialize_interpolator(x_source.data(), x_size, y_source.data(), y_size);
 }
 
 SplineInterpolator::SplineInterpolator(const double* x_source, int x_size, const double* y_source, int y_size)
 {
-	// Store data and calculate intervals h
-	store_input_data(x_source, x_size, y_source, y_size);
+	// Call initialization function that uses C-style arrays
+	initialize_interpolator(x_source, x_size, y_source, y_size);
+}
 
-	// Initialize left-hand-side matrix and right-hand-side vector used to calculate derivatives
-	initialize_lhs_and_rhs();
+void SplineInterpolator::write_derivative_values(std::string file_name)
+{
+	// Write contents of matrix to a file
+	FILE* file;
+	const gsl_vector* D_const = D;
+	errno_t err = fopen_s(&file, file_name.data(), "w");
+	gsl_vector_fprintf(file, D_const, "%f");
+	if (file) fclose(file);
 }

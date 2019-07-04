@@ -12,6 +12,8 @@ int main()
 	std::vector<double> y({ 0.0, 93.0, 219.0, 265.5, 331.5, 424.5, 628.5, 1040.8, 1319.8, 1496.8, 1614.6, 1671.6, 1702.85 });
 
 	SplineInterpolator sinterp(x, y);
+
+	sinterp.write_derivative_values("derivative_values.txt");
 }
 
 // Run program: Ctrl + F5 or Debug > Start Without Debugging menu

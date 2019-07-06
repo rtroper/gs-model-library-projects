@@ -13,7 +13,12 @@ int main()
 
 	SplineInterpolator sinterp(x, y);
 
-	sinterp.write_derivative_values("derivative_values.txt");
+	double x_in = 1072.0;
+	std::cout << "Interpolated value for " << x_in << " is " << sinterp.interpolate(x_in) << std::endl;
+	std::cout << "Derivative is " << sinterp.interpolate_derivative(x_in) << std::endl;
+
+	sinterp.write_vector_values("vector_values.txt");
+	sinterp.write_matrix_values("matrix_values.txt");
 }
 
 // Run program: Ctrl + F5 or Debug > Start Without Debugging menu

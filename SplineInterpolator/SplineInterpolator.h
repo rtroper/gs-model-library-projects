@@ -24,14 +24,28 @@ private:
 	// Calculate first derivatives at all data points and second derivatives at bounding points
 	bool calculate_derivatives();
 
+	// Calculate spline parameter vectors a, b, c, and d
+	bool calculate_spline_parameters();
+
 	// Store input data, initialize lhs and rhs and calculate derivatives
 	bool initialize_interpolator(const double* x_source, int x_size, const double* y_source, int y_size);
 
+	// Calculate i and t values for a specified x value
+	std::pair<int, double> get_i_and_t_values(double x_value);
+
 public:
+	// Constructors
 	SplineInterpolator(const std::vector<double>& x_source, const std::vector<double>& y_source);
 	SplineInterpolator(const double* x_source, int x_size, const double* y_source, int y_size);
 
-	// Convenience function to check for correct derivative values
-	void write_derivative_values(std::string file_name);
+	// Calculate spline interpolation value
+	double interpolate(double x_value);
+
+	// Calculate spline interpolation derivative
+	double interpolate_derivative(double x_value);
+
+	// Convenience functions to write vector and matrix values to check for correctness
+	void write_vector_values(std::string file_name);
+	void write_matrix_values(std::string file_name);
 };
 

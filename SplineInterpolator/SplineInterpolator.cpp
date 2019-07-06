@@ -17,7 +17,7 @@ bool SplineInterpolator::store_input_data(const double* x_source, int x_size, co
 	h = gsl_vector_calloc(size_data - 1);
 
 	// Store source data in x and y and calculate h
-	for (int i = 0; i < size_data; i++)
+	for (size_t i = 0; i < size_data; i++)
 	{
 		gsl_vector_set(x, i, x_source[i]);
 		gsl_vector_set(y, i, y_source[i]);
@@ -220,7 +220,7 @@ std::pair<int, double> SplineInterpolator::get_i_and_t_values(double x_value)
 
 	// Loop over x to find i such that x[i] < x_value < x[i+1]
 	int i = 0;
-	for (int idx = 1; idx < size_data; idx++)
+	for (size_t idx = 1; idx < size_data; idx++)
 	{
 		if (x_adjusted > gsl_vector_get(x, idx)) i++;
 		else break;

@@ -21,8 +21,8 @@ private:
 
 	// Variables below are for spline interpolation using GSL's built-in spline interpolation functions
 
-	gsl_interp* cspline_interp, * steffen_interp;		// Interpolation objects for cubic spline and Steffen interpolation
-	gsl_interp_accel* cspline_accel, * steffen_accel;	// Accelerator objects used for cubic spline and Steffen interpolation
+	gsl_interp* cspline_interp, * steffen_interp, * akima_interp;		// Interpolation objects for cubic spline and Steffen interpolation
+	gsl_interp_accel* cspline_accel, * steffen_accel, * akima_accel;	// Accelerator objects used for cubic spline and Steffen interpolation
 
 	// Store input data in member variables (return true if success)
 	bool store_input_data(const double* x_source, int x_size, const double* y_source, int y_size);
@@ -41,6 +41,9 @@ private:
 
 	// Initialize GSL Steffen interpolator
 	bool initialize_steffen_interpolator();
+
+	// Initialize GSL Akima interpolator
+	bool initialize_akima_interpolator();
 
 	// Store input data, initialize lhs and rhs and calculate derivatives
 	bool initialize_interpolators(const double* x_source, int x_size, const double* y_source, int y_size);
@@ -70,6 +73,12 @@ public:
 
 	// Calculate spline interpolation derivative using GSL's Steffen spline derivative
 	double interpolate_steffen_derivative(double x_value);
+
+	// Calculate spline interpolation value using GSL's Akima spline
+	double interpolate_akima(double x_value);
+
+	// Calculate spline interpolation derivative using GSL's Akima spline derivative
+	double interpolate_akima_derivative(double x_value);
 
 	// Convenience functions to write vector and matrix values to check for correctness
 	void write_vector_values(std::string file_name);

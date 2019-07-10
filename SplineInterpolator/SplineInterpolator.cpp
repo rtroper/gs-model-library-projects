@@ -231,6 +231,29 @@ bool SplineInterpolator::initialize_steffen_interpolator()
 	return success;
 }
 
+bool SplineInterpolator::initialize_akima_interpolator()
+{
+	// Default return value is true
+	bool success = true;
+
+	// Define integer for error returns
+	int status = 0;
+
+	// Get x and y pointers
+	const double* x_ptr = gsl_vector_const_ptr(x, 0);
+	const double* y_ptr = gsl_vector_const_ptr(y, 0);
+
+	// Initialize the Akima interpolator
+	akima_interp = gsl_interp_alloc(gsl_interp_akima, size_data);
+	status = gsl_interp_init(akima_interp, x_ptr, y_ptr, size_data);
+	if (status) return false;	// Add code for proper error handling/messaging
+
+	// Initialize the accelerator for Akima interpolation
+	akima_accel = gsl_interp_accel_alloc();
+
+	return success;
+}
+
 bool SplineInterpolator::initialize_interpolators(const double* x_source, int x_size, const double* y_source, int y_size)
 {
 	// Default return value is true
@@ -261,6 +284,10 @@ bool SplineInterpolator::initialize_interpolators(const double* x_source, int x_
 
 	// Initialize GSL Steffen interpolator
 	success = initialize_steffen_interpolator();
+	if (!success) return success;	// Add code for proper error handling/messaging
+
+	// Initialize GSL Akima interpolator
+	success = initialize_akima_interpolator();
 	if (!success) return success;	// Add code for proper error handling/messaging
 
 	return success;
@@ -417,6 +444,40 @@ double SplineInterpolator::interpolate_steffen_derivative(double x_value)
 
 	// Get the interpolated derivative
 	first_deriv_interp = gsl_interp_eval_deriv(steffen_interp, x_ptr, y_ptr, x_adjusted, steffen_accel);
+
+	return first_deriv_interp;
+}
+
+double SplineInterpolator::interpolate_akima(double x_value)
+{
+	double y_interp = 0.0;
+
+	// First mod the input x value with the maximum x so that values outside x range are wrapped
+	double x_adjusted = std::fmod(x_value, gsl_vector_get(x, size_data - 1));
+
+	// Get x and y pointers
+	const double* x_ptr = gsl_vector_const_ptr(x, 0);
+	const double* y_ptr = gsl_vector_const_ptr(y, 0);
+
+	// Get the interpolated value
+	y_interp = gsl_interp_eval(akima_interp, x_ptr, y_ptr, x_adjusted, akima_accel);
+
+	return y_interp;
+}
+
+double SplineInterpolator::interpolate_akima_derivative(double x_value)
+{
+	double first_deriv_interp = 0.0;
+
+	// First mod the input x value with the maximum x so that values outside x range are wrapped
+	double x_adjusted = std::fmod(x_value, gsl_vector_get(x, size_data - 1));
+
+	// Get x and y pointers
+	const double* x_ptr = gsl_vector_const_ptr(x, 0);
+	const double* y_ptr = gsl_vector_const_ptr(y, 0);
+
+	// Get the interpolated derivative
+	first_deriv_interp = gsl_interp_eval_deriv(akima_interp, x_ptr, y_ptr, x_adjusted, akima_accel);
 
 	return first_deriv_interp;
 }

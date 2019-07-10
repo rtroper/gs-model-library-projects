@@ -23,6 +23,9 @@ int main()
 	std::cout << "\nInterpolated value (Steffen spline) for " << x_in << " is " << sinterp.interpolate_steffen(x_in) << std::endl;
 	std::cout << "Derivative is " << sinterp.interpolate_steffen_derivative(x_in) << std::endl;
 
+	std::cout << "\nInterpolated value (Akima spline) for " << x_in << " is " << sinterp.interpolate_akima(x_in) << std::endl;
+	std::cout << "Derivative is " << sinterp.interpolate_akima_derivative(x_in) << std::endl;
+
 	sinterp.write_vector_values("vector_values.txt");
 	sinterp.write_matrix_values("matrix_values.txt");
 }

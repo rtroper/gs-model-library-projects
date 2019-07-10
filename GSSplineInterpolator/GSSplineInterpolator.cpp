@@ -70,7 +70,7 @@ enum XFStatusID
 //    - inargs: array of input arguments
 //    - outargs: this array returns different information for different XFMethod values
 
-// Calculate the spline function parameters for an input vector of data
+// Calculate the spline-interpolated values (non-GSL) for given x and y input vectors of data
 //-----------------------------------------------------------------------------------------------
 extern "C" void __declspec(dllexport) Interpolate(int methodID, int* status, double* inargs, double* outargs)
 {
@@ -134,6 +134,170 @@ extern "C" void __declspec(dllexport) Interpolate(int methodID, int* status, dou
 		current_x = inargs[2 * DATA_BUFFER_SIZE + 1];
 		outargs[0] = interpolator->interpolate(current_x);
 		outargs[1] = interpolator->interpolate_derivative(current_x);
+
+		break;
+
+		// Close any open files
+		// Optionally release any memory that's been allocated
+		// No arguments are passed on this call.
+	case  XF_CLEANUP:
+		break;	// No clean-up required
+
+	// Error if this point is reached
+	// This means the switch statement did not provide the cases that GoldSim expected.
+	// The external function must have cases 0, 1, 2, 3 and 99
+	default:
+		*status = XF_FAILURE;
+		break;
+	}
+}
+
+// Calculate the spline-interpolated values (GSL cubic spline) for given x and y input vectors of data
+//-----------------------------------------------------------------------------------------------
+extern "C" void __declspec(dllexport) Interpolate_CSpline(int methodID, int* status, double* inargs, double* outargs)
+{
+	*status = XF_SUCCESS;
+	double current_x;
+
+	switch (methodID)
+	{
+		// Initialize (called at beginning of each realization)
+		// For example, allocate memory or open files
+		// No arguments are passed on this call
+	case  XF_INITIALIZE:
+		// Initialize global variables
+		break;	// no initialization in this example
+
+	// The external function reports its version
+	// No input arguments are passed on this call.
+	// outargs[0] is set equal to the external fcn version
+	case  XF_REP_VERSION:
+		outargs[0] = 1.01;
+		break;
+
+		// External fcn reports the number of input and output arguments
+		// outargs[0] is set equal to the # of inputs arguments
+		// outargs[1] is set equal to the # of output arguments
+	case  XF_REP_ARGUMENTS:
+		// The first argument from GS is the actual data size (e.g. if it is 20, then x is size 20 and y is size 20).
+		// The next 2 * DATA_BUFFER_SIZE values are reserved for x and y so that DATA_BUFFER_SIZE is the maximum size
+		// of x and y. The last argument from GS is the x value for which to calculate the interpolated value.
+		outargs[0] = 2.0 * DATA_BUFFER_SIZE + 2.0;
+
+		// The first return argument is the interpolated value and the second is the derivative of the fitted spline
+		outargs[1] = 2.0;
+		break;
+
+		// Normal calculation.
+		// Results are returned as outarg[0], outarg[1], etc. depending on number of outputs
+	case  XF_CALCULATE:
+		// Initialize the spline interpolator
+		if (initialized < 0)
+		{
+			// Set 'initialized' >= 0 so that this block is only executed on the first call to the DLL
+			initialized = 1;
+
+			// Initialize x and y vectors to store input data
+			int size_data = min(static_cast<int>(inargs[0]), DATA_BUFFER_SIZE);
+			std::vector<double> x(size_data, 0.0), y(size_data, 0.0);
+
+			// Load input data into x and y
+			for (int i = 0; i < size_data; i++)
+			{
+				x[i] = inargs[i + 1];
+				y[i] = inargs[i + 1 + DATA_BUFFER_SIZE];
+			}
+
+			// Initialize the spline interpolator
+			interpolator = new SplineInterpolator(x, y);
+		}
+
+		// Calculate and return the interpolated value and derivative
+		current_x = inargs[2 * DATA_BUFFER_SIZE + 1];
+		outargs[0] = interpolator->interpolate_cspline(current_x);
+		outargs[1] = interpolator->interpolate_cspline_derivative(current_x);
+
+		break;
+
+		// Close any open files
+		// Optionally release any memory that's been allocated
+		// No arguments are passed on this call.
+	case  XF_CLEANUP:
+		break;	// No clean-up required
+
+	// Error if this point is reached
+	// This means the switch statement did not provide the cases that GoldSim expected.
+	// The external function must have cases 0, 1, 2, 3 and 99
+	default:
+		*status = XF_FAILURE;
+		break;
+	}
+}
+
+// Calculate the spline-interpolated values (GSL Steffen spline) for given x and y input vectors of data
+//-----------------------------------------------------------------------------------------------
+extern "C" void __declspec(dllexport) Interpolate_SteffenSpline(int methodID, int* status, double* inargs, double* outargs)
+{
+	*status = XF_SUCCESS;
+	double current_x;
+
+	switch (methodID)
+	{
+		// Initialize (called at beginning of each realization)
+		// For example, allocate memory or open files
+		// No arguments are passed on this call
+	case  XF_INITIALIZE:
+		// Initialize global variables
+		break;	// no initialization in this example
+
+	// The external function reports its version
+	// No input arguments are passed on this call.
+	// outargs[0] is set equal to the external fcn version
+	case  XF_REP_VERSION:
+		outargs[0] = 1.01;
+		break;
+
+		// External fcn reports the number of input and output arguments
+		// outargs[0] is set equal to the # of inputs arguments
+		// outargs[1] is set equal to the # of output arguments
+	case  XF_REP_ARGUMENTS:
+		// The first argument from GS is the actual data size (e.g. if it is 20, then x is size 20 and y is size 20).
+		// The next 2 * DATA_BUFFER_SIZE values are reserved for x and y so that DATA_BUFFER_SIZE is the maximum size
+		// of x and y. The last argument from GS is the x value for which to calculate the interpolated value.
+		outargs[0] = 2.0 * DATA_BUFFER_SIZE + 2.0;
+
+		// The first return argument is the interpolated value and the second is the derivative of the fitted spline
+		outargs[1] = 2.0;
+		break;
+
+		// Normal calculation.
+		// Results are returned as outarg[0], outarg[1], etc. depending on number of outputs
+	case  XF_CALCULATE:
+		// Initialize the spline interpolator
+		if (initialized < 0)
+		{
+			// Set 'initialized' >= 0 so that this block is only executed on the first call to the DLL
+			initialized = 1;
+
+			// Initialize x and y vectors to store input data
+			int size_data = min(static_cast<int>(inargs[0]), DATA_BUFFER_SIZE);
+			std::vector<double> x(size_data, 0.0), y(size_data, 0.0);
+
+			// Load input data into x and y
+			for (int i = 0; i < size_data; i++)
+			{
+				x[i] = inargs[i + 1];
+				y[i] = inargs[i + 1 + DATA_BUFFER_SIZE];
+			}
+
+			// Initialize the spline interpolator
+			interpolator = new SplineInterpolator(x, y);
+		}
+
+		// Calculate and return the interpolated value and derivative
+		current_x = inargs[2 * DATA_BUFFER_SIZE + 1];
+		outargs[0] = interpolator->interpolate_steffen(current_x);
+		outargs[1] = interpolator->interpolate_steffen_derivative(current_x);
 
 		break;
 

@@ -14,8 +14,14 @@ int main()
 	SplineInterpolator sinterp(x, y);
 
 	double x_in = 1072.0;
-	std::cout << "Interpolated value for " << x_in << " is " << sinterp.interpolate(x_in) << std::endl;
+	std::cout << "Interpolated value (non-GSL) for " << x_in << " is " << sinterp.interpolate(x_in) << std::endl;
 	std::cout << "Derivative is " << sinterp.interpolate_derivative(x_in) << std::endl;
+
+	std::cout << "\nInterpolated value (cubic spline) for " << x_in << " is " << sinterp.interpolate_cspline(x_in) << std::endl;
+	std::cout << "Derivative is " << sinterp.interpolate_cspline_derivative(x_in) << std::endl;
+
+	std::cout << "\nInterpolated value (Steffen spline) for " << x_in << " is " << sinterp.interpolate_steffen(x_in) << std::endl;
+	std::cout << "Derivative is " << sinterp.interpolate_steffen_derivative(x_in) << std::endl;
 
 	sinterp.write_vector_values("vector_values.txt");
 	sinterp.write_matrix_values("matrix_values.txt");

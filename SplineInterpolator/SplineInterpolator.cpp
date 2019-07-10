@@ -185,12 +185,61 @@ bool SplineInterpolator::calculate_spline_parameters()
 	return success;
 }
 
-bool SplineInterpolator::initialize_interpolator(const double* x_source, int x_size, const double* y_source, int y_size)
+bool SplineInterpolator::initialize_cspline_interpolator()
 {
 	// Default return value is true
 	bool success = true;
 
-	// Store data and calculate intervals h
+	// Define integer for error returns
+	int status = 0;
+
+	// Get x and y pointers
+	const double* x_ptr = gsl_vector_const_ptr(x, 0);
+	const double* y_ptr = gsl_vector_const_ptr(y, 0);
+
+	// Initialize the cubic spline interpolator
+	cspline_interp = gsl_interp_alloc(gsl_interp_cspline, size_data);
+	status = gsl_interp_init(cspline_interp, x_ptr, y_ptr, size_data);
+	if (status) return false;	// Add code for proper error handling/messaging
+
+	// Initialize the accelerator for cubic spline interpolation
+	cspline_accel = gsl_interp_accel_alloc();
+
+	return success;
+}
+
+bool SplineInterpolator::initialize_steffen_interpolator()
+{
+	// Default return value is true
+	bool success = true;
+
+	// Define integer for error returns
+	int status = 0;
+
+	// Get x and y pointers
+	const double* x_ptr = gsl_vector_const_ptr(x, 0);
+	const double* y_ptr = gsl_vector_const_ptr(y, 0);
+
+	// Initialize the Steffen interpolator
+	steffen_interp = gsl_interp_alloc(gsl_interp_steffen, size_data);
+	status = gsl_interp_init(steffen_interp, x_ptr, y_ptr, size_data);
+	if (status) return false;	// Add code for proper error handling/messaging
+
+	// Initialize the accelerator for Steffen interpolation
+	steffen_accel = gsl_interp_accel_alloc();
+
+	return success;
+}
+
+bool SplineInterpolator::initialize_interpolators(const double* x_source, int x_size, const double* y_source, int y_size)
+{
+	// Default return value is true
+	bool success = true;
+
+	// NOTE: store_input_data must be called before anything else, since it
+	// initializes the value of size_data
+
+	// Store data and calculate intervals h (also initializes size_data)
 	success = store_input_data(x_source, x_size, y_source, y_size);
 	if (!success) return success;	// Add code for proper error handling/messaging
 
@@ -206,6 +255,14 @@ bool SplineInterpolator::initialize_interpolator(const double* x_source, int x_s
 	success = calculate_spline_parameters();
 	if (!success) return success;	// Add code for proper error handling/messaging
 
+	// Initialize GSL cubic spline interpolator
+	success = initialize_cspline_interpolator();
+	if (!success) return success;	// Add code for proper error handling/messaging
+
+	// Initialize GSL Steffen interpolator
+	success = initialize_steffen_interpolator();
+	if (!success) return success;	// Add code for proper error handling/messaging
+
 	return success;
 }
 
@@ -214,8 +271,7 @@ std::pair<int, double> SplineInterpolator::get_i_and_t_values(double x_value)
 	// Initialize return value
 	std::pair<int, double> i_and_t = std::pair<int, double>();
 
-	// First mod the input x value with the maximum x so that values
-	// outside x range are wrapped
+	// First mod the input x value with the maximum x so that values outside x range are wrapped
 	double x_adjusted = std::fmod(x_value, gsl_vector_get(x, size_data - 1));
 
 	// Loop over x to find i such that x[i] < x_value < x[i+1]
@@ -243,13 +299,13 @@ SplineInterpolator::SplineInterpolator(const std::vector<double>& x_source, cons
 	int y_size = static_cast<int>(y_source.size());
 
 	// Call initialization function that uses C-style arrays
-	initialize_interpolator(x_source.data(), x_size, y_source.data(), y_size);
+	initialize_interpolators(x_source.data(), x_size, y_source.data(), y_size);
 }
 
 SplineInterpolator::SplineInterpolator(const double* x_source, int x_size, const double* y_source, int y_size)
 {
 	// Call initialization function that uses C-style arrays
-	initialize_interpolator(x_source, x_size, y_source, y_size);
+	initialize_interpolators(x_source, x_size, y_source, y_size);
 }
 
 double SplineInterpolator::interpolate(double x_value)
@@ -295,6 +351,74 @@ double SplineInterpolator::interpolate_derivative(double x_value)
 	deriv_interp = (b_val + 2.0 * c_val * t + 3.0 * d_val * std::pow(t, 2.0)) / h_val;
 
 	return deriv_interp;
+}
+
+double SplineInterpolator::interpolate_cspline(double x_value)
+{
+	double y_interp = 0.0;
+
+	// First mod the input x value with the maximum x so that values outside x range are wrapped
+	double x_adjusted = std::fmod(x_value, gsl_vector_get(x, size_data - 1));
+
+	// Get x and y pointers
+	const double* x_ptr = gsl_vector_const_ptr(x, 0);
+	const double* y_ptr = gsl_vector_const_ptr(y, 0);
+
+	// Get the interpolated value
+	y_interp = gsl_interp_eval(cspline_interp, x_ptr, y_ptr, x_adjusted, cspline_accel);
+
+	return y_interp;
+}
+
+double SplineInterpolator::interpolate_cspline_derivative(double x_value)
+{
+	double first_deriv_interp = 0.0;
+
+	// First mod the input x value with the maximum x so that values outside x range are wrapped
+	double x_adjusted = std::fmod(x_value, gsl_vector_get(x, size_data - 1));
+
+	// Get x and y pointers
+	const double* x_ptr = gsl_vector_const_ptr(x, 0);
+	const double* y_ptr = gsl_vector_const_ptr(y, 0);
+
+	// Get the interpolated derivative
+	first_deriv_interp = gsl_interp_eval_deriv(cspline_interp, x_ptr, y_ptr, x_adjusted, cspline_accel);
+
+	return first_deriv_interp;
+}
+
+double SplineInterpolator::interpolate_steffen(double x_value)
+{
+	double y_interp = 0.0;
+
+	// First mod the input x value with the maximum x so that values outside x range are wrapped
+	double x_adjusted = std::fmod(x_value, gsl_vector_get(x, size_data - 1));
+
+	// Get x and y pointers
+	const double* x_ptr = gsl_vector_const_ptr(x, 0);
+	const double* y_ptr = gsl_vector_const_ptr(y, 0);
+
+	// Get the interpolated value
+	y_interp = gsl_interp_eval(steffen_interp, x_ptr, y_ptr, x_adjusted, steffen_accel);
+
+	return y_interp;
+}
+
+double SplineInterpolator::interpolate_steffen_derivative(double x_value)
+{
+	double first_deriv_interp = 0.0;
+
+	// First mod the input x value with the maximum x so that values outside x range are wrapped
+	double x_adjusted = std::fmod(x_value, gsl_vector_get(x, size_data - 1));
+
+	// Get x and y pointers
+	const double* x_ptr = gsl_vector_const_ptr(x, 0);
+	const double* y_ptr = gsl_vector_const_ptr(y, 0);
+
+	// Get the interpolated derivative
+	first_deriv_interp = gsl_interp_eval_deriv(steffen_interp, x_ptr, y_ptr, x_adjusted, steffen_accel);
+
+	return first_deriv_interp;
 }
 
 // Generic convenience function to print values of all vector-type member data

@@ -4,16 +4,25 @@
 #include <iostream>
 #include <gsl/gsl_vector.h>
 #include <gsl/gsl_matrix.h>
+#include <gsl/gsl_interp.h>
 
 class SplineInterpolator
 {
 private:
 	size_t size_data;				// Number of data points to which to fit spline
 	gsl_vector* x, * y;				// Independent and dependent variable data to which to fit spline functions
+
+	// Variables below are for spline interpolation without GSL's built-in spline interpolation functions
+
 	gsl_matrix* lhs;				// Left-hand-side matrix in equation to solve for derivatives
 	gsl_vector* rhs;				// Right-hand-side vector in equation to solve for derivatives
 	gsl_vector* a, * b, * c, * d;	// Coefficients in spline functions
 	gsl_vector* D, * h;				// Derivatives (D) and x-variable intervals (h)
+
+	// Variables below are for spline interpolation using GSL's built-in spline interpolation functions
+
+	gsl_interp* cspline_interp, * steffen_interp;		// Interpolation objects for cubic spline and Steffen interpolation
+	gsl_interp_accel* cspline_accel, * steffen_accel;	// Accelerator objects used for cubic spline and Steffen interpolation
 
 	// Store input data in member variables (return true if success)
 	bool store_input_data(const double* x_source, int x_size, const double* y_source, int y_size);
@@ -27,8 +36,14 @@ private:
 	// Calculate spline parameter vectors a, b, c, and d
 	bool calculate_spline_parameters();
 
+	// Initialize GSL cspline interpolator
+	bool initialize_cspline_interpolator();
+
+	// Initialize GSL Steffen interpolator
+	bool initialize_steffen_interpolator();
+
 	// Store input data, initialize lhs and rhs and calculate derivatives
-	bool initialize_interpolator(const double* x_source, int x_size, const double* y_source, int y_size);
+	bool initialize_interpolators(const double* x_source, int x_size, const double* y_source, int y_size);
 
 	// Calculate i and t values for a specified x value
 	std::pair<int, double> get_i_and_t_values(double x_value);
@@ -43,6 +58,18 @@ public:
 
 	// Calculate spline interpolation derivative
 	double interpolate_derivative(double x_value);
+
+	// Calculate spline interpolation value using GSL's cubic spline
+	double interpolate_cspline(double x_value);
+
+	// Calculate spline interpolation derivative using GSL's cubic spline derivative
+	double interpolate_cspline_derivative(double x_value);
+
+	// Calculate spline interpolation value using GSL's Steffen spline
+	double interpolate_steffen(double x_value);
+
+	// Calculate spline interpolation derivative using GSL's Steffen spline derivative
+	double interpolate_steffen_derivative(double x_value);
 
 	// Convenience functions to write vector and matrix values to check for correctness
 	void write_vector_values(std::string file_name);

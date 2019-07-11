@@ -127,7 +127,7 @@ extern "C" void __declspec(dllexport) Interpolate(int methodID, int* status, dou
 			}
 
 			// Initialize the spline interpolator
-			interpolator = new SplineInterpolator(x, y);
+			interpolator = new SplineInterpolator(SplineInterpolator::BasicNonGSL, x, y);
 		}
 
 		// Calculate and return the interpolated value and derivative
@@ -141,7 +141,10 @@ extern "C" void __declspec(dllexport) Interpolate(int methodID, int* status, dou
 		// Optionally release any memory that's been allocated
 		// No arguments are passed on this call.
 	case  XF_CLEANUP:
-		break;	// No clean-up required
+		// Free memory allocated for GSL objects
+		delete interpolator;
+		interpolator = 0;
+		break;
 
 	// Error if this point is reached
 	// This means the switch statement did not provide the cases that GoldSim expected.
@@ -209,13 +212,13 @@ extern "C" void __declspec(dllexport) Interpolate_CSpline(int methodID, int* sta
 			}
 
 			// Initialize the spline interpolator
-			interpolator = new SplineInterpolator(x, y);
+			interpolator = new SplineInterpolator(SplineInterpolator::GSLCubic, x, y);
 		}
 
 		// Calculate and return the interpolated value and derivative
 		current_x = inargs[2 * DATA_BUFFER_SIZE + 1];
-		outargs[0] = interpolator->interpolate_cspline(current_x);
-		outargs[1] = interpolator->interpolate_cspline_derivative(current_x);
+		outargs[0] = interpolator->interpolate(current_x);
+		outargs[1] = interpolator->interpolate_derivative(current_x);
 
 		break;
 
@@ -223,7 +226,10 @@ extern "C" void __declspec(dllexport) Interpolate_CSpline(int methodID, int* sta
 		// Optionally release any memory that's been allocated
 		// No arguments are passed on this call.
 	case  XF_CLEANUP:
-		break;	// No clean-up required
+		// Free memory allocated for GSL objects
+		delete interpolator;
+		interpolator = 0;
+		break;
 
 	// Error if this point is reached
 	// This means the switch statement did not provide the cases that GoldSim expected.
@@ -291,13 +297,13 @@ extern "C" void __declspec(dllexport) Interpolate_SteffenSpline(int methodID, in
 			}
 
 			// Initialize the spline interpolator
-			interpolator = new SplineInterpolator(x, y);
+			interpolator = new SplineInterpolator(SplineInterpolator::GSLSteffen, x, y);
 		}
 
 		// Calculate and return the interpolated value and derivative
 		current_x = inargs[2 * DATA_BUFFER_SIZE + 1];
-		outargs[0] = interpolator->interpolate_steffen(current_x);
-		outargs[1] = interpolator->interpolate_steffen_derivative(current_x);
+		outargs[0] = interpolator->interpolate(current_x);
+		outargs[1] = interpolator->interpolate_derivative(current_x);
 
 		break;
 
@@ -305,7 +311,10 @@ extern "C" void __declspec(dllexport) Interpolate_SteffenSpline(int methodID, in
 		// Optionally release any memory that's been allocated
 		// No arguments are passed on this call.
 	case  XF_CLEANUP:
-		break;	// No clean-up required
+		// Free memory allocated for GSL objects
+		delete interpolator;
+		interpolator = 0;
+		break;
 
 	// Error if this point is reached
 	// This means the switch statement did not provide the cases that GoldSim expected.
@@ -373,13 +382,13 @@ extern "C" void __declspec(dllexport) Interpolate_AkimaSpline(int methodID, int*
 			}
 
 			// Initialize the spline interpolator
-			interpolator = new SplineInterpolator(x, y);
+			interpolator = new SplineInterpolator(SplineInterpolator::GSLAkima, x, y);
 		}
 
 		// Calculate and return the interpolated value and derivative
 		current_x = inargs[2 * DATA_BUFFER_SIZE + 1];
-		outargs[0] = interpolator->interpolate_akima(current_x);
-		outargs[1] = interpolator->interpolate_akima_derivative(current_x);
+		outargs[0] = interpolator->interpolate(current_x);
+		outargs[1] = interpolator->interpolate_derivative(current_x);
 
 		break;
 
@@ -387,7 +396,10 @@ extern "C" void __declspec(dllexport) Interpolate_AkimaSpline(int methodID, int*
 		// Optionally release any memory that's been allocated
 		// No arguments are passed on this call.
 	case  XF_CLEANUP:
-		break;	// No clean-up required
+		// Free memory allocated for GSL objects
+		delete interpolator;
+		interpolator = 0;
+		break;
 
 	// Error if this point is reached
 	// This means the switch statement did not provide the cases that GoldSim expected.

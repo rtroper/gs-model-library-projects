@@ -8,7 +8,18 @@
 
 class SplineInterpolator
 {
+public:
+	// Enum to specify the interpolation method
+	enum InterpolationMethod
+	{
+		BasicNonGSL = 0,
+		GSLCubic,
+		GSLSteffen,
+		GSLAkima
+	};
+
 private:
+	InterpolationMethod method;
 	size_t size_data;				// Number of data points to which to fit spline
 	gsl_vector* x, * y;				// Independent and dependent variable data to which to fit spline functions
 
@@ -21,8 +32,8 @@ private:
 
 	// Variables below are for spline interpolation using GSL's built-in spline interpolation functions
 
-	gsl_interp* cspline_interp, * steffen_interp, * akima_interp;		// Interpolation objects for cubic spline and Steffen interpolation
-	gsl_interp_accel* cspline_accel, * steffen_accel, * akima_accel;	// Accelerator objects used for cubic spline and Steffen interpolation
+	gsl_interp* gsl_interpolator;
+	gsl_interp_accel* gsl_accelerator;
 
 	// Store input data in member variables (return true if success)
 	bool store_input_data(const double* x_source, int x_size, const double* y_source, int y_size);
@@ -36,6 +47,9 @@ private:
 	// Calculate spline parameter vectors a, b, c, and d
 	bool calculate_spline_parameters();
 
+	// Initialize lhs, rhs, a, b, c, d, etc used in default interpolation method
+	bool initialize_default_interpolator();
+
 	// Initialize GSL cspline interpolator
 	bool initialize_cspline_interpolator();
 
@@ -46,39 +60,28 @@ private:
 	bool initialize_akima_interpolator();
 
 	// Store input data, initialize lhs and rhs and calculate derivatives
-	bool initialize_interpolators(const double* x_source, int x_size, const double* y_source, int y_size);
+	bool initialize_interpolator(const double* x_source, int x_size, const double* y_source, int y_size);
 
 	// Calculate i and t values for a specified x value
 	std::pair<int, double> get_i_and_t_values(double x_value);
 
 public:
-	// Constructors
+	// Constructors that use default interpolator (InterpolationMethod::BasicNonGSL)
 	SplineInterpolator(const std::vector<double>& x_source, const std::vector<double>& y_source);
 	SplineInterpolator(const double* x_source, int x_size, const double* y_source, int y_size);
+
+	// Constructors that allow specification of the interpolator
+	SplineInterpolator(InterpolationMethod method, const std::vector<double>& x_source, const std::vector<double>& y_source);
+	SplineInterpolator(InterpolationMethod method, const double* x_source, int x_size, const double* y_source, int y_size);
+
+	// Destructor to free memory allocated by GSL
+	~SplineInterpolator();
 
 	// Calculate spline interpolation value
 	double interpolate(double x_value);
 
 	// Calculate spline interpolation derivative
 	double interpolate_derivative(double x_value);
-
-	// Calculate spline interpolation value using GSL's cubic spline
-	double interpolate_cspline(double x_value);
-
-	// Calculate spline interpolation derivative using GSL's cubic spline derivative
-	double interpolate_cspline_derivative(double x_value);
-
-	// Calculate spline interpolation value using GSL's Steffen spline
-	double interpolate_steffen(double x_value);
-
-	// Calculate spline interpolation derivative using GSL's Steffen spline derivative
-	double interpolate_steffen_derivative(double x_value);
-
-	// Calculate spline interpolation value using GSL's Akima spline
-	double interpolate_akima(double x_value);
-
-	// Calculate spline interpolation derivative using GSL's Akima spline derivative
-	double interpolate_akima_derivative(double x_value);
 
 	// Convenience functions to write vector and matrix values to check for correctness
 	void write_vector_values(std::string file_name);

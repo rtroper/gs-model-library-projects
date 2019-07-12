@@ -15,26 +15,30 @@ int main()
 	// Create/initialize interpolators
 	SplineInterpolator interp_default(x, y);
 	SplineInterpolator interp_cspline(SplineInterpolator::GSLCubic, x, y);
+	SplineInterpolator interp_cspline_periodic(SplineInterpolator::GSLCubicPeriodic, x, y);
 	SplineInterpolator interp_steffen(SplineInterpolator::GSLSteffen, x, y);
 	SplineInterpolator interp_akima(SplineInterpolator::GSLAkima, x, y);
+	SplineInterpolator interp_akima_periodic(SplineInterpolator::GSLAkimaPeriodic, x, y);
 
 	// Write to console interpolated value and derivative at a specified x value
 	double x_in = 1072.0;
 	std::cout << "Interpolated value (non-GSL) for " << x_in << " is " << interp_default.interpolate(x_in) << std::endl;
 	std::cout << "Derivative is " << interp_default.interpolate_derivative(x_in) << std::endl;
 
-	std::cout << "\nInterpolated value (cubic spline) for " << x_in << " is " << interp_cspline.interpolate(x_in) << std::endl;
+	std::cout << "\nInterpolated value (cubic spline, natural) for " << x_in << " is " << interp_cspline.interpolate(x_in) << std::endl;
 	std::cout << "Derivative is " << interp_cspline.interpolate_derivative(x_in) << std::endl;
+
+	std::cout << "\nInterpolated value (cubic spline, periodic) for " << x_in << " is " << interp_cspline_periodic.interpolate(x_in) << std::endl;
+	std::cout << "Derivative is " << interp_cspline_periodic.interpolate_derivative(x_in) << std::endl;
 
 	std::cout << "\nInterpolated value (Steffen spline) for " << x_in << " is " << interp_steffen.interpolate(x_in) << std::endl;
 	std::cout << "Derivative is " << interp_steffen.interpolate_derivative(x_in) << std::endl;
 
-	std::cout << "\nInterpolated value (Akima spline) for " << x_in << " is " << interp_akima.interpolate(x_in) << std::endl;
+	std::cout << "\nInterpolated value (Akima spline, natural) for " << x_in << " is " << interp_akima.interpolate(x_in) << std::endl;
 	std::cout << "Derivative is " << interp_akima.interpolate_derivative(x_in) << std::endl;
 
-	// Print vector and matrix data for default interpolator
-	interp_default.write_vector_values("vector_values.txt");
-	interp_default.write_matrix_values("matrix_values.txt");
+	std::cout << "\nInterpolated value (Akima spline, periodic) for " << x_in << " is " << interp_akima_periodic.interpolate(x_in) << std::endl;
+	std::cout << "Derivative is " << interp_akima_periodic.interpolate_derivative(x_in) << std::endl;
 }
 
 // Run program: Ctrl + F5 or Debug > Start Without Debugging menu

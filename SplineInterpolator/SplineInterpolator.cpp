@@ -1,31 +1,24 @@
 #include "pch.h"
 #include "SplineInterpolator.h"
 
-bool SplineInterpolator::store_input_data(const double* x_source, int x_size, const double* y_source, int y_size)
+bool SplineInterpolator::store_input_data(const std::vector<double>& x_in, const std::vector<double>& y_in)
 {
 	// Default return value is true
 	bool success = true;
 
 	// Store data up to the maximum available (for x and y)
-	size_data = static_cast<size_t>(min(x_size, y_size));
-
-	// Initialize x and y vectors to store input data
-	x = gsl_vector_calloc(size_data);
-	y = gsl_vector_calloc(size_data);
-
-	// Initialize h to store x intervals
-	h = gsl_vector_calloc(size_data - 1);
+	size_data = static_cast<size_t>(min(x_in.size(), y_in.size()));
 
 	// Store source data in x and y and calculate h
 	for (size_t i = 0; i < size_data; i++)
 	{
-		gsl_vector_set(x, i, x_source[i]);
-		gsl_vector_set(y, i, y_source[i]);
+		x.push_back(x_in[i]);
+		y.push_back(y_in[i]);
 
 		if (i < size_data - 1)
 		{
 			// Store difference between x[i+1] and x[i]
-			gsl_vector_set(h, i, x_source[i + 1] - x_source[i]);
+			h.push_back(x_in[i + 1] - x_in[i]);
 		}
 	}
 
@@ -34,17 +27,10 @@ bool SplineInterpolator::store_input_data(const double* x_source, int x_size, co
 
 // Left-hand-side matrix (lhs) and right-hand-side vector (rhs) must not be initialized until
 // store_input_data has been called since y and h must first be initialized
-bool SplineInterpolator::initialize_lhs_and_rhs()
+bool SplineInterpolator::initialize_lhs_and_rhs(gsl_matrix* lhs, gsl_vector* rhs)
 {
 	// Default return value is true
 	bool success = true;
-
-	// Cast data size to correct type to initialize lhs and rhs
-	const size_t size = static_cast<size_t>(size_data);
-
-	// Initialize lhs and rhs with 0 values
-	lhs = gsl_matrix_calloc(size + 2, size + 2);
-	rhs = gsl_vector_calloc(size + 2);
 
 	// NOTE: lhs and rhs are used to solve for first derivatives D0, D1, ..., DN at data points
 	// (x0, y0), (x1, y1), ... , (xN, yN), where N = size-1, and second derivatives D0' and DN' at 
@@ -53,56 +39,38 @@ bool SplineInterpolator::initialize_lhs_and_rhs()
 	// resulting solution vector, the first 'size' values are D0, D1, ... , DN and the last 2 values
 	// are D0' and DN'.
 
-	// Initialize the first 'size' rows of lhs and rhs
-	double h1 = 0.0, h2 = 0.0, y1 = 0.0, y2 = 0.0, y3 = 0.0;
-	for (size_t i = 0; i < size; i++)
+	// Initialize the first 'size_data' rows of lhs and rhs
+	for (size_t i = 0; i < size_data; i++)
 	{
 		if (i == 0)
 		{
-			// Get h and y values needed for calculations
-			h1 = gsl_vector_get(h, 0);
-			y1 = gsl_vector_get(y, 0);
-			y2 = gsl_vector_get(y, 1);
-
 			// Set lhs values
-			gsl_matrix_set(lhs, 0,    0,          2.0 * h1 );
-			gsl_matrix_set(lhs, 0,    1,                h1 );
-			gsl_matrix_set(lhs, 0, size, 0.5 * pow(h1, 2.0));
+			gsl_matrix_set(lhs, 0,    0,          2.0 * h[0] );
+			gsl_matrix_set(lhs, 0,    1,                h[0] );
+			gsl_matrix_set(lhs, 0, size_data, 0.5 * pow(h[0], 2.0));
 
 			// Set rhs value
-			gsl_vector_set(rhs, 0, 3.0 * (y2 - y1));
+			gsl_vector_set(rhs, 0, 3.0 * (y[1] - y[0]));
 		}
-		else if (i == size - 1)
+		else if (i == size_data - 1)
 		{
-			// Get h and y values needed for calculations
-			h1 = gsl_vector_get(h, size - 2);
-			y1 = gsl_vector_get(y, size - 2);
-			y2 = gsl_vector_get(y, size - 1);
-
 			// Set lhs values
-			gsl_matrix_set(lhs, size - 1, size - 1,           2.0 * h1 );
-			gsl_matrix_set(lhs, size - 1, size - 2,                 h1 );
-			gsl_matrix_set(lhs, size - 1, size + 1, -0.5 * pow(h1, 2.0));
+			gsl_matrix_set(lhs, size_data - 1, size_data - 1,      2.0 * h[size_data - 2]);
+			gsl_matrix_set(lhs, size_data - 1, size_data - 2,            h[size_data - 2]);
+			gsl_matrix_set(lhs, size_data - 1, size_data + 1, -0.5 * pow(h[size_data - 2], 2.0));
 
 			// Set rhs value
-			gsl_vector_set(rhs, size - 1, 3.0 * (y2 - y1));
+			gsl_vector_set(rhs, size_data - 1, 3.0 * (y[size_data - 1] - y[size_data - 2]));
 		}
 		else
 		{
-			// Get h and y values needed for calculations
-			h1 = gsl_vector_get(h, i - 1);
-			h2 = gsl_vector_get(h, i    );
-			y1 = gsl_vector_get(y, i - 1);
-			y2 = gsl_vector_get(y, i    );
-			y3 = gsl_vector_get(y, i + 1);
-
 			// Set lhs values
-			gsl_matrix_set(lhs, i, i - 1,                                h1  );
-			gsl_matrix_set(lhs, i, i    , 2.0 * h1 * (1 + pow(h1 / h2, 2.0)) );
-			gsl_matrix_set(lhs, i, i + 1,       h1 *      pow(h1 / h2, 2.0)  );
+			gsl_matrix_set(lhs, i, i - 1,                           h[i - 1]);
+			gsl_matrix_set(lhs, i, i    , 2.0 * h[i - 1] * (1 + pow(h[i - 1] / h[i], 2.0)) );
+			gsl_matrix_set(lhs, i, i + 1,       h[i - 1] *      pow(h[i - 1] / h[i], 2.0)  );
 
 			// Set rhs value
-			gsl_vector_set(rhs, i, 3.0 * (y3 - y2) * pow(h1 / h2, 2.0) + 3.0 * (y2 - y1));
+			gsl_vector_set(rhs, i, 3.0 * (y[i + 1] - y[i]) * pow(h[i - 1] / h[i], 2.0) + 3.0 * (y[i] - y[i - 1]));
 		}
 	}
 
@@ -111,15 +79,15 @@ bool SplineInterpolator::initialize_lhs_and_rhs()
 	// equal to each other. Note that for these conditions, the last 2 rows of rhs are zero and,
 	// therefore, do not need to be modified. TO-DO: Create a separate function that can be used
 	// to set different boundary conditions.
-	gsl_matrix_set(lhs,     size,        0,  1.0);
-	gsl_matrix_set(lhs,     size, size - 1, -1.0);
-	gsl_matrix_set(lhs, size + 1,     size,  1.0);
-	gsl_matrix_set(lhs, size + 1, size + 1, -1.0);
+	gsl_matrix_set(lhs,     size_data,             0,  1.0);
+	gsl_matrix_set(lhs,     size_data, size_data - 1, -1.0);
+	gsl_matrix_set(lhs, size_data + 1,     size_data,  1.0);
+	gsl_matrix_set(lhs, size_data + 1, size_data + 1, -1.0);
 
 	return success;
 }
 
-bool SplineInterpolator::calculate_derivatives()
+bool SplineInterpolator::calculate_derivatives(gsl_vector* D)
 {
 	// Default return value is true
 	bool success = true;
@@ -127,10 +95,11 @@ bool SplineInterpolator::calculate_derivatives()
 	// Define integer for error returns
 	int status = 0;
 
-	// Create and initialize LU, a matrix to store LU decomposition when solving for derivatives
-	gsl_matrix* LU = gsl_matrix_alloc(size_data + 2, size_data + 2);
-	status = gsl_matrix_memcpy(LU, lhs);
-	if (status) return false;	// Add code for proper error handling/messaging
+	// Initialize LU matrix and right-hand-side (rhs) vector
+	gsl_matrix* LU = gsl_matrix_calloc(size_data + 2, size_data + 2);
+	gsl_vector* rhs = gsl_vector_calloc(size_data + 2);
+	success = initialize_lhs_and_rhs(LU, rhs);
+	if (!success) return false;	// Add code for proper error handling/messaging
 
 	// Create permutation vector to store permutation
 	gsl_permutation* p = gsl_permutation_calloc(size_data + 2);
@@ -142,9 +111,6 @@ bool SplineInterpolator::calculate_derivatives()
 	status = gsl_linalg_LU_decomp(LU, p, signum);
 	if (status) return false;	// Add code for proper error handling/messaging
 
-	// Initialize D (to store results of LU solve)
-	D = gsl_vector_calloc(size_data + 2);
-
 	// Solve for D
 	const gsl_vector* rhs_const = rhs;
 	status = gsl_linalg_LU_solve(LU, p, rhs, D);
@@ -152,7 +118,9 @@ bool SplineInterpolator::calculate_derivatives()
 
 	// Free memory used for solving matrix equations
 	gsl_matrix_free(LU);
+	gsl_vector_free(rhs);
 	gsl_permutation_free(p);
+	delete signum;
 
 	return success;
 }
@@ -162,29 +130,28 @@ bool SplineInterpolator::calculate_spline_parameters()
 	// Default return value is true
 	bool success = true;
 
-	// Initialize a, b, c, and d
-	a = gsl_vector_calloc(size_data - 1);
-	b = gsl_vector_calloc(size_data - 1);
-	c = gsl_vector_calloc(size_data - 1);
-	d = gsl_vector_calloc(size_data - 1);
+	// Initialize vector for derivatives
+	gsl_vector* D = gsl_vector_calloc(size_data + 2);
+	success = calculate_derivatives(D);
+	if (!success) return false;	// Add code for proper error handling/messaging
 
 	// Load calculated values into a, b, c, and d
-	double h1 = 0.0, y1 = 0.0, y2 = 0.0, D1 = 0.0, D2 = 0.0;
+	double D1 = 0.0, D2 = 0.0;
 	for (size_t i = 0; i < size_data - 1; i++)
 	{
-		// Get h, y and D values needed for calculations
-		h1 = gsl_vector_get(h,     i);
-		y1 = gsl_vector_get(y,     i);
-		y2 = gsl_vector_get(y, i + 1);
+		// Get D values needed for calculations
 		D1 = gsl_vector_get(D,     i);
 		D2 = gsl_vector_get(D, i + 1);
 
 		// Calculate a, b, c, and d values
-		gsl_vector_set(a, i,                                    y1 );
-		gsl_vector_set(b, i,                               h1 * D1 );
-		gsl_vector_set(c, i, 3.0 * (y2 - y1) - h1 * (2.0 * D1 + D2));
-		gsl_vector_set(d, i,       2.0 * (y1 - y2) + h1 * (D1 + D2));
+		a.push_back(y[i]);
+		b.push_back(h[i] * D1);
+		c.push_back(3.0 * (y[i + 1] - y[i]) - h[i] * (2.0 * D1 + D2));
+		d.push_back(2.0 * (y[i] - y[i + 1]) + h[i] * (D1 + D2));
 	}
+
+	// Free memory that is no longer needed
+	gsl_vector_free(D);
 
 	return success;
 }
@@ -194,22 +161,14 @@ bool SplineInterpolator::initialize_default_interpolator()
 	// Default return value is true
 	bool success = true;
 
-	// Initialize left-hand-side matrix and right-hand-side vector used to calculate derivatives
-	success = initialize_lhs_and_rhs();
-	if (!success) return success;	// Add code for proper error handling/messaging
-
-	// Calculate derivatives at all data points (to be used in calculating a, b, c, and d parameters)
-	success = calculate_derivatives();
-	if (!success) return success;	// Add code for proper error handling/messaging
-
 	// Calculate spline parameters a, b, c, and d
 	success = calculate_spline_parameters();
-	if (!success) return success;	// Add code for proper error handling/messaging
+	if (!success) return false;	// Add code for proper error handling/messaging
 
 	return success;
 }
 
-bool SplineInterpolator::initialize_cspline_interpolator()
+bool SplineInterpolator::initialize_cspline_interpolator(SplineBoundaryCondition boundary)
 {
 	// Default return value is true
 	bool success = true;
@@ -217,13 +176,20 @@ bool SplineInterpolator::initialize_cspline_interpolator()
 	// Define integer for error returns
 	int status = 0;
 
-	// Get x and y pointers
-	const double* x_ptr = gsl_vector_const_ptr(x, 0);
-	const double* y_ptr = gsl_vector_const_ptr(y, 0);
-
 	// Initialize the cubic spline interpolator
-	gsl_interpolator = gsl_interp_alloc(gsl_interp_cspline, size_data);
-	status = gsl_interp_init(gsl_interpolator, x_ptr, y_ptr, size_data);
+	switch (boundary)
+	{
+	case(SplineBoundaryCondition::Natural):
+		gsl_interpolator = gsl_interp_alloc(gsl_interp_cspline, size_data);
+		break;
+	case(SplineBoundaryCondition::Periodic):
+		gsl_interpolator = gsl_interp_alloc(gsl_interp_cspline_periodic, size_data);
+		break;
+	default:
+		gsl_interpolator = gsl_interp_alloc(gsl_interp_cspline, size_data);
+		break;
+	}
+	status = gsl_interp_init(gsl_interpolator, x.data(), y.data(), size_data);
 	if (status) return false;	// Add code for proper error handling/messaging
 
 	// Initialize the accelerator for cubic spline interpolation
@@ -240,13 +206,9 @@ bool SplineInterpolator::initialize_steffen_interpolator()
 	// Define integer for error returns
 	int status = 0;
 
-	// Get x and y pointers
-	const double* x_ptr = gsl_vector_const_ptr(x, 0);
-	const double* y_ptr = gsl_vector_const_ptr(y, 0);
-
 	// Initialize the Steffen interpolator
 	gsl_interpolator = gsl_interp_alloc(gsl_interp_steffen, size_data);
-	status = gsl_interp_init(gsl_interpolator, x_ptr, y_ptr, size_data);
+	status = gsl_interp_init(gsl_interpolator, x.data(), y.data(), size_data);
 	if (status) return false;	// Add code for proper error handling/messaging
 
 	// Initialize the accelerator for Steffen interpolation
@@ -255,7 +217,7 @@ bool SplineInterpolator::initialize_steffen_interpolator()
 	return success;
 }
 
-bool SplineInterpolator::initialize_akima_interpolator()
+bool SplineInterpolator::initialize_akima_interpolator(SplineBoundaryCondition boundary)
 {
 	// Default return value is true
 	bool success = true;
@@ -263,13 +225,20 @@ bool SplineInterpolator::initialize_akima_interpolator()
 	// Define integer for error returns
 	int status = 0;
 
-	// Get x and y pointers
-	const double* x_ptr = gsl_vector_const_ptr(x, 0);
-	const double* y_ptr = gsl_vector_const_ptr(y, 0);
-
 	// Initialize the Akima interpolator
-	gsl_interpolator = gsl_interp_alloc(gsl_interp_akima, size_data);
-	status = gsl_interp_init(gsl_interpolator, x_ptr, y_ptr, size_data);
+	switch (boundary)
+	{
+	case(SplineBoundaryCondition::Natural):
+		gsl_interpolator = gsl_interp_alloc(gsl_interp_akima, size_data);
+		break;
+	case(SplineBoundaryCondition::Periodic):
+		gsl_interpolator = gsl_interp_alloc(gsl_interp_akima_periodic, size_data);
+		break;
+	default:
+		gsl_interpolator = gsl_interp_alloc(gsl_interp_akima, size_data);
+		break;
+	}
+	status = gsl_interp_init(gsl_interpolator, x.data(), y.data(), size_data);
 	if (status) return false;	// Add code for proper error handling/messaging
 
 	// Initialize the accelerator for Akima interpolation
@@ -278,7 +247,7 @@ bool SplineInterpolator::initialize_akima_interpolator()
 	return success;
 }
 
-bool SplineInterpolator::initialize_interpolator(const double* x_source, int x_size, const double* y_source, int y_size)
+bool SplineInterpolator::initialize_interpolator(const std::vector<double>& x_in, const std::vector<double>& y_in)
 {
 	// Default return value is true
 	bool success = true;
@@ -287,31 +256,39 @@ bool SplineInterpolator::initialize_interpolator(const double* x_source, int x_s
 	// initializes the value of size_data
 
 	// Store data and calculate intervals h (also initializes size_data)
-	success = store_input_data(x_source, x_size, y_source, y_size);
-	if (!success) return success;	// Add code for proper error handling/messaging
+	success = store_input_data(x_in, y_in);
+	if (!success) return false;	// Add code for proper error handling/messaging
 
 	// Switch on interpolation method
 	switch (method)
 	{
 	case(InterpolationMethod::BasicNonGSL):
 		success = initialize_default_interpolator();
-		if (!success) return success;	// Add code for proper error handling/messaging
+		if (!success) return false;	// Add code for proper error handling/messaging
 		break;
 	case(InterpolationMethod::GSLCubic):
-		success = initialize_cspline_interpolator();
-		if (!success) return success;	// Add code for proper error handling/messaging
+		success = initialize_cspline_interpolator(SplineBoundaryCondition::Natural);
+		if (!success) return false;	// Add code for proper error handling/messaging
+		break;
+	case(InterpolationMethod::GSLCubicPeriodic):
+		success = initialize_cspline_interpolator(SplineBoundaryCondition::Periodic);
+		if (!success) return false;	// Add code for proper error handling/messaging
 		break;
 	case(InterpolationMethod::GSLSteffen):
 		success = initialize_steffen_interpolator();
-		if (!success) return success;	// Add code for proper error handling/messaging
+		if (!success) return false;	// Add code for proper error handling/messaging
 		break;
 	case(InterpolationMethod::GSLAkima):
-		success = initialize_akima_interpolator();
-		if (!success) return success;	// Add code for proper error handling/messaging
+		success = initialize_akima_interpolator(SplineBoundaryCondition::Natural);
+		if (!success) return false;	// Add code for proper error handling/messaging
+		break;
+	case(InterpolationMethod::GSLAkimaPeriodic):
+		success = initialize_akima_interpolator(SplineBoundaryCondition::Periodic);
+		if (!success) return false;	// Add code for proper error handling/messaging
 		break;
 	default:
 		success = initialize_default_interpolator();
-		if (!success) return success;	// Add code for proper error handling/messaging
+		if (!success) return false;	// Add code for proper error handling/messaging
 		break;
 	}
 
@@ -324,18 +301,18 @@ std::pair<int, double> SplineInterpolator::get_i_and_t_values(double x_value)
 	std::pair<int, double> i_and_t = std::pair<int, double>();
 
 	// First mod the input x value with the maximum x so that values outside x range are wrapped
-	double x_adjusted = std::fmod(x_value, gsl_vector_get(x, size_data - 1));
+	double x_adjusted = std::fmod(x_value, x[size_data - 1]);
 
 	// Loop over x to find i such that x[i] < x_value < x[i+1]
 	int i = 0;
 	for (size_t idx = 1; idx < size_data; idx++)
 	{
-		if (x_adjusted > gsl_vector_get(x, idx)) i++;
+		if (x_adjusted > x[idx]) i++;
 		else break;
 	}
 
 	// Calculate t value i.e. (x_value - x[i]) / (x[i+1] - x[i])
-	double t = (x_adjusted - gsl_vector_get(x, i)) / gsl_vector_get(h, i);
+	double t = (x_adjusted - x[i]) / h[i];
 
 	// Store i and t values to return
 	i_and_t.first = i;
@@ -345,61 +322,21 @@ std::pair<int, double> SplineInterpolator::get_i_and_t_values(double x_value)
 }
 
 SplineInterpolator::SplineInterpolator(const std::vector<double>& x_source, const std::vector<double>& y_source)
-	: method(InterpolationMethod::BasicNonGSL), size_data(0), x(0), y(0), lhs(0), rhs(0), 
-	  a(0), b(0), c(0), d(0), D(0), h(0), gsl_interpolator(0), gsl_accelerator(0)
+	: method(InterpolationMethod::BasicNonGSL), size_data(0), gsl_interpolator(0), gsl_accelerator(0)
 {
-	// Get sizes of source data
-	int x_size = static_cast<int>(x_source.size());
-	int y_size = static_cast<int>(y_source.size());
-
-	// Call initialization function that uses C-style arrays (use default interpolation method)
-	initialize_interpolator(x_source.data(), x_size, y_source.data(), y_size);
-}
-
-SplineInterpolator::SplineInterpolator(const double* x_source, int x_size, const double* y_source, int y_size)
-	: method(InterpolationMethod::BasicNonGSL), size_data(0), x(0), y(0), lhs(0), rhs(0), 
-	  a(0), b(0), c(0), d(0), D(0), h(0), gsl_interpolator(0), gsl_accelerator(0)
-{
-	// Call initialization function that uses C-style arrays (use default interpolation method)
-	initialize_interpolator(x_source, x_size, y_source, y_size);
+	// Call initialization function
+	initialize_interpolator(x_source, y_source);
 }
 
 SplineInterpolator::SplineInterpolator(InterpolationMethod method, const std::vector<double>& x_source, const std::vector<double>& y_source)
-	: method(method), size_data(0), x(0), y(0), lhs(0), rhs(0),
-	  a(0), b(0), c(0), d(0), D(0), h(0), gsl_interpolator(0), gsl_accelerator(0)
+	: method(method), size_data(0), gsl_interpolator(0), gsl_accelerator(0)
 {
-	// Get sizes of source data
-	int x_size = static_cast<int>(x_source.size());
-	int y_size = static_cast<int>(y_source.size());
-
-	// Call initialization function that uses C-style arrays
-	initialize_interpolator(x_source.data(), x_size, y_source.data(), y_size);
-}
-
-SplineInterpolator::SplineInterpolator(InterpolationMethod method, const double* x_source, int x_size, const double* y_source, int y_size)
-	: method(method), size_data(0), x(0), y(0), lhs(0), rhs(0), 
-	  a(0), b(0), c(0), d(0), D(0), h(0), gsl_interpolator(0), gsl_accelerator(0)
-{
-	// Call initialization function that uses C-style arrays
-	initialize_interpolator(x_source, x_size, y_source, y_size);
+	// Call initialization function
+	initialize_interpolator(x_source, y_source);
 }
 
 SplineInterpolator::~SplineInterpolator()
 {
-	// Free memory allocated for GSL vectors
-	if (x) gsl_vector_free(x);
-	if (y) gsl_vector_free(y);
-	if (rhs) gsl_vector_free(rhs);
-	if (a) gsl_vector_free(a);
-	if (b) gsl_vector_free(b);
-	if (c) gsl_vector_free(c);
-	if (d) gsl_vector_free(d);
-	if (D) gsl_vector_free(D);
-	if (h) gsl_vector_free(h);
-
-	// Free memory allocated for GSL matrices
-	if (lhs) gsl_matrix_free(lhs);
-
 	// Free memory allocated for GSL interpolation objects
 	if (gsl_interpolator) gsl_interp_free(gsl_interpolator);
 	if (gsl_accelerator) gsl_interp_accel_free(gsl_accelerator);
@@ -416,26 +353,16 @@ double SplineInterpolator::interpolate(double x_value)
 		int i = i_and_t.first;
 		double t = i_and_t.second;
 
-		// Get parameter values needed for interpoloation
-		double a_val = gsl_vector_get(a, i);
-		double b_val = gsl_vector_get(b, i);
-		double c_val = gsl_vector_get(c, i);
-		double d_val = gsl_vector_get(d, i);
-
 		// Calculate the interpolated y value
-		y_interp = a_val + b_val * t + c_val * std::pow(t, 2.0) + d_val * std::pow(t, 3.0);
+		y_interp = a[i] + b[i] * t + c[i] * std::pow(t, 2.0) + d[i] * std::pow(t, 3.0);
 	}
 	else
 	{
 		// First mod the input x value with the maximum x so that values outside x range are wrapped
-		double x_adjusted = std::fmod(x_value, gsl_vector_get(x, size_data - 1));
-
-		// Get x and y pointers
-		const double* x_ptr = gsl_vector_const_ptr(x, 0);
-		const double* y_ptr = gsl_vector_const_ptr(y, 0);
+		double x_adjusted = std::fmod(x_value, x[size_data - 1]);
 
 		// Get the interpolated value
-		y_interp = gsl_interp_eval(gsl_interpolator, x_ptr, y_ptr, x_adjusted, gsl_accelerator);
+		y_interp = gsl_interp_eval(gsl_interpolator, x.data(), y.data(), x_adjusted, gsl_accelerator);
 	}
 
 	return y_interp;
@@ -452,150 +379,18 @@ double SplineInterpolator::interpolate_derivative(double x_value)
 		int i = i_and_t.first;
 		double t = i_and_t.second;
 
-		// Get parameter values needed for calculation
-		double a_val = gsl_vector_get(a, i);
-		double b_val = gsl_vector_get(b, i);
-		double c_val = gsl_vector_get(c, i);
-		double d_val = gsl_vector_get(d, i);
-
-		// Get x interval value needed for calculation
-		double h_val = gsl_vector_get(h, i);
-
 		// Calculate the interpolated y value
-		deriv_interp = (b_val + 2.0 * c_val * t + 3.0 * d_val * std::pow(t, 2.0)) / h_val;
+		deriv_interp = (b[i] + 2.0 * c[i] * t + 3.0 * d[i] * std::pow(t, 2.0)) / h[i];
 	}
 	else
 	{
 		// First mod the input x value with the maximum x so that values outside x range are wrapped
-		double x_adjusted = std::fmod(x_value, gsl_vector_get(x, size_data - 1));
-
-		// Get x and y pointers
-		const double* x_ptr = gsl_vector_const_ptr(x, 0);
-		const double* y_ptr = gsl_vector_const_ptr(y, 0);
+		double x_adjusted = std::fmod(x_value, x[size_data - 1]);
 
 		// Get the interpolated derivative
-		deriv_interp = gsl_interp_eval_deriv(gsl_interpolator, x_ptr, y_ptr, x_adjusted, gsl_accelerator);
+		deriv_interp = gsl_interp_eval_deriv(gsl_interpolator, x.data(), y.data(), x_adjusted, gsl_accelerator);
 	}
 
 	return deriv_interp;
 }
 
-// Generic convenience function to print values of all vector-type member data
-void SplineInterpolator::write_vector_values(std::string file_name)
-{
-	// Open output file
-	FILE* file;
-	errno_t err = fopen_s(&file, file_name.data(), "w");
-	
-	// If file is not null, write all vector data
-	if (file)
-	{
-		// Write x
-		fprintf_s(file, "Input data independent variable (x) values:\n\n");
-		if (x)
-		{
-			gsl_vector_fprintf(file, x, "%f");
-			fprintf_s(file, "\n");
-		}
-		else fprintf_s(file, "NULL DATA!!\n\n");
-
-		// Write y
-		fprintf_s(file, "Input data dependent variable (y) values:\n\n");
-		if (y)
-		{
-			gsl_vector_fprintf(file, y, "%f");
-			fprintf_s(file, "\n");
-		}
-		else fprintf_s(file, "NULL DATA!!\n\n");
-
-		// Write h
-		fprintf_s(file, "Independent variable interval (h) values:\n\n");
-		if (h)
-		{
-			gsl_vector_fprintf(file, h, "%f");
-			fprintf_s(file, "\n");
-		}
-		else fprintf_s(file, "NULL DATA!!\n\n");
-
-		// Write rhs
-		fprintf_s(file, "Right-hand-side (rhs) of equation to solve for derivatives:\n\n");
-		if (rhs)
-		{
-			gsl_vector_fprintf(file, rhs, "%f");
-			fprintf_s(file, "\n");
-		}
-		else fprintf_s(file, "NULL DATA!!\n\n");
-
-		// Write D
-		fprintf_s(file, "Derivative (D) values:\n\n");
-		if (D)
-		{
-			gsl_vector_fprintf(file, D, "%f");
-			fprintf_s(file, "\n");
-		}
-		else fprintf_s(file, "NULL DATA!!\n\n");
-
-		// Write a
-		fprintf_s(file, "Spline parameter 'a' values:\n\n");
-		if (a)
-		{
-			gsl_vector_fprintf(file, a, "%f");
-			fprintf_s(file, "\n");
-		}
-		else fprintf_s(file, "NULL DATA!!\n\n");
-
-		// Write b
-		fprintf_s(file, "Spline parameter 'b' values:\n\n");
-		if (b)
-		{
-			gsl_vector_fprintf(file, b, "%f");
-			fprintf_s(file, "\n");
-		}
-		else fprintf_s(file, "NULL DATA!!\n\n");
-
-		// Write c
-		fprintf_s(file, "Spline parameter 'c' values:\n\n");
-		if (c)
-		{
-			gsl_vector_fprintf(file, c, "%f");
-			fprintf_s(file, "\n");
-		}
-		else fprintf_s(file, "NULL DATA!!\n\n");
-
-		// Write d
-		fprintf_s(file, "Spline parameter 'd' values:\n\n");
-		if (d)
-		{
-			gsl_vector_fprintf(file, d, "%f");
-			fprintf_s(file, "\n");
-		}
-		else fprintf_s(file, "NULL DATA!!\n\n");
-	}
-
-	// Close the file
-	if (file) fclose(file);
-}
-
-// Generic convenience function to print values of all matrix-type member data
-void SplineInterpolator::write_matrix_values(std::string file_name)
-{
-	// Open output file
-	FILE* file;
-	errno_t err = fopen_s(&file, file_name.data(), "w");
-	
-	// If file is not null, write all matrix data
-	if (file)
-	{
-		// Write lhs
-		fprintf_s(file, "Left-hand-side (lhs) of equation to solve for derivatives:\n\n");
-		if (lhs)
-		{
-			gsl_matrix_fprintf(file, lhs, "%f");
-			fprintf_s(file, "\n");
-		}
-		else fprintf_s(file, "NULL DATA!!\n\n");
-	}
-
-	// Close the file
-	if (file) fclose(file);
-}

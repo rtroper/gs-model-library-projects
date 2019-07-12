@@ -14,35 +14,37 @@ public:
 	{
 		BasicNonGSL = 0,
 		GSLCubic,
+		GSLCubicPeriodic,
 		GSLSteffen,
-		GSLAkima
+		GSLAkima,
+		GSLAkimaPeriodic
+	};
+
+	// Enum to specify spline boundary conditions
+	enum SplineBoundaryCondition
+	{
+		Natural = 0,
+		Periodic
 	};
 
 private:
 	InterpolationMethod method;
 	size_t size_data;				// Number of data points to which to fit spline
-	gsl_vector* x, * y;				// Independent and dependent variable data to which to fit spline functions
-
-	// Variables below are for spline interpolation without GSL's built-in spline interpolation functions
-
-	gsl_matrix* lhs;				// Left-hand-side matrix in equation to solve for derivatives
-	gsl_vector* rhs;				// Right-hand-side vector in equation to solve for derivatives
-	gsl_vector* a, * b, * c, * d;	// Coefficients in spline functions
-	gsl_vector* D, * h;				// Derivatives (D) and x-variable intervals (h)
+	std::vector<double> x, y, h;	// Independent (x) and dependent (y) variable data and x-variable intervals (h)
+	std::vector<double> a, b, c, d; // Coefficients for spline interpolation
 
 	// Variables below are for spline interpolation using GSL's built-in spline interpolation functions
-
 	gsl_interp* gsl_interpolator;
 	gsl_interp_accel* gsl_accelerator;
 
 	// Store input data in member variables (return true if success)
-	bool store_input_data(const double* x_source, int x_size, const double* y_source, int y_size);
+	bool store_input_data(const std::vector<double>& x_in, const std::vector<double>& y_in);
 
 	// Initialize left-hand-side matrix and right-hand-side vector for derivative calculations (return true if success)
-	bool initialize_lhs_and_rhs();
+	bool initialize_lhs_and_rhs(gsl_matrix* lhs, gsl_vector* rhs);
 
 	// Calculate first derivatives at all data points and second derivatives at bounding points
-	bool calculate_derivatives();
+	bool calculate_derivatives(gsl_vector* D);
 
 	// Calculate spline parameter vectors a, b, c, and d
 	bool calculate_spline_parameters();
@@ -51,28 +53,26 @@ private:
 	bool initialize_default_interpolator();
 
 	// Initialize GSL cspline interpolator
-	bool initialize_cspline_interpolator();
+	bool initialize_cspline_interpolator(SplineBoundaryCondition boundary);
 
 	// Initialize GSL Steffen interpolator
 	bool initialize_steffen_interpolator();
 
 	// Initialize GSL Akima interpolator
-	bool initialize_akima_interpolator();
+	bool initialize_akima_interpolator(SplineBoundaryCondition boundary);
 
 	// Store input data, initialize lhs and rhs and calculate derivatives
-	bool initialize_interpolator(const double* x_source, int x_size, const double* y_source, int y_size);
+	bool initialize_interpolator(const std::vector<double>& x_in, const std::vector<double>& y_in);
 
 	// Calculate i and t values for a specified x value
 	std::pair<int, double> get_i_and_t_values(double x_value);
 
 public:
-	// Constructors that use default interpolator (InterpolationMethod::BasicNonGSL)
+	// Constructor that uses default interpolator (InterpolationMethod::BasicNonGSL)
 	SplineInterpolator(const std::vector<double>& x_source, const std::vector<double>& y_source);
-	SplineInterpolator(const double* x_source, int x_size, const double* y_source, int y_size);
 
-	// Constructors that allow specification of the interpolator
+	// Constructor that allows specification of the interpolation method
 	SplineInterpolator(InterpolationMethod method, const std::vector<double>& x_source, const std::vector<double>& y_source);
-	SplineInterpolator(InterpolationMethod method, const double* x_source, int x_size, const double* y_source, int y_size);
 
 	// Destructor to free memory allocated by GSL
 	~SplineInterpolator();
@@ -82,9 +82,5 @@ public:
 
 	// Calculate spline interpolation derivative
 	double interpolate_derivative(double x_value);
-
-	// Convenience functions to write vector and matrix values to check for correctness
-	void write_vector_values(std::string file_name);
-	void write_matrix_values(std::string file_name);
 };
 

@@ -32,10 +32,15 @@ enum XFMethodID
 TimeSeries* ts1;		// Use only for function GetTimeSeriesStatistics
 TimeSeries* ts2;		// Use only for function GetTimeSeriesCorrelation
 TimeSeries* ts3;		// Use only for function GetTimeSeriesCorrelation
+TimeSeries* ts4;		// Use only for function GetTimeSeriesAutoCorrelation
+TimeSeries* ts5;		// Use only for function GetTimeSeriesAutoCorrelation
 int initialized1 = -1;	// Set to a value >= 0 on the first call to GetTimeSeriesStatistics
 int initialized2 = -1;	// Set to a value >= 0 on the first call to GetTimeSeriesCorrelation
+int initialized3 = -1;	// Set to a value >= 0 on the first call to GetTimeSeriesAutoCorrelation
 double time_index1;		// Use in functions where time values do not matter (use for GetTimeSeriesStatistics)
 double time_index2;		// Use in functions where time values do not matter (use for GetTimeSeriesCorrelation)
+double time_index3;		// Use in functions where time values do not matter (use for GetTimeSeriesAutoCorrelation)
+int counter;			// Use only in GetTimeSeriesAutoCorrelation
 
 //  XFStatusID (below) identifies the return codes for external functions. 
 //      
@@ -236,6 +241,104 @@ extern "C" void __declspec(dllexport) GetTimeSeriesCorrelation(int methodID, int
 		delete ts2;
 		delete ts3;
 		ts2 = ts3 = 0;
+		break;
+
+		// Error if this point is reached
+		// This means the switch statement did not provide the cases that GoldSim expected.
+		// The external function must have cases 0, 1, 2, 3 and 99
+	default:
+		*status = XF_FAILURE;
+		break;
+	}
+}
+
+// Calculate the auto-correlation for a given time series
+//-----------------------------------------------------------------------------------------------
+extern "C" void __declspec(dllexport) GetTimeSeriesAutoCorrelation(int methodID, int* status, double* inargs, double* outargs)
+{
+	*status = XF_SUCCESS;
+	//double current_x;
+
+	switch (methodID)
+	{
+		// Initialize (called at beginning of each realization)
+		// For example, allocate memory or open files
+		// No arguments are passed on this call
+	case  XF_INITIALIZE:
+		// Initialize global variables
+		break;	// no initialization in this example
+
+	// The external function reports its version
+	// No input arguments are passed on this call.
+	// outargs[0] is set equal to the external fcn version
+	case  XF_REP_VERSION:
+		outargs[0] = 1.01;
+		break;
+
+		// External fcn reports the number of input and output arguments
+		// outargs[0] is set equal to the # of inputs arguments
+		// outargs[1] is set equal to the # of output arguments
+	case  XF_REP_ARGUMENTS:
+		// Three values from GoldSim are expected on each call to this function
+		// The first value is the current value of the time series
+		// The second value is the shift for the auto-correlation calculation
+		// The third value is designated to specify a numerical code for missing values in the time series
+		outargs[0] = 3.0;
+
+		// Return the value of the auto-correlation of the time series
+		outargs[1] = 1.0;
+		break;
+
+		// Normal calculation.
+		// Results are returned as outarg[0], outarg[1], etc. depending on number of outputs
+	case  XF_CALCULATE:
+		// Initialize global variables
+		if (initialized3 < 0)
+		{
+			// Initialize time index
+			time_index3 = 0.0;
+
+			// Initialize counter
+			counter = 0;
+
+			// Set 'initialized' >= 0 so that this block is only executed on the first call to the DLL
+			initialized3 = 1;
+
+			// Initialize the two time series
+			ts4 = new TimeSeries();
+			ts5 = new TimeSeries();
+		}
+
+		// Add new time point to the time series only if it is not a missing value at the current time point
+		if ( inargs[0] > inargs[2] + 1.0e-6 )
+		{
+			// Add time point and increment counter
+			ts4->addTimepoint(time_index3, inargs[0]);
+			counter++;
+
+			// Add time point from ts4 to ts5 if counter is >= auto-correlation shift 
+			if (counter > int(inargs[1]))
+			{
+				ts5->addTimepoint(time_index3, inargs[0]);
+			}
+		}
+
+		// Calculate and return the correlation of values in the two time series
+		outargs[0] = ts4->correlation(*ts5);
+
+		// Increment the time series index
+		time_index3 += 1.0;
+
+		break;
+
+		// Close any open files
+		// Optionally release any memory that's been allocated
+		// No arguments are passed on this call.
+	case  XF_CLEANUP:
+		// Free memory allocated for time series object(s)
+		delete ts4;
+		delete ts5;
+		ts4 = ts5 = 0;
 		break;
 
 		// Error if this point is reached

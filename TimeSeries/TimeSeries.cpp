@@ -55,7 +55,7 @@ double TimeSeries::mean(int n)
 	// Number of values to use to calculate the mean
 	int number_of_values_to_use = min(values.size(), size_t(n));
 
-	if ( number_of_values_to_use > 0 )
+	if ( number_of_values_to_use >= 1 )
 	{
 		// Calculate sum of values and return the mean
 		for (int i = 0; i < number_of_values_to_use; i++) sum += values[i];
@@ -83,14 +83,14 @@ double TimeSeries::stdev(int n)
 	// Number of values to use to calculate the standard deviation
 	int number_of_values_to_use = min(values.size(), size_t(n));
 
-	if ( number_of_values_to_use > 0 )
+	if ( number_of_values_to_use >= 2 )
 	{
 		// Get mean of values
 		double mean = TimeSeries::mean(number_of_values_to_use);
 
 		// Calculate sum of squared deviations from mean and return standard deviation
 		for (int i = 0; i < number_of_values_to_use; i++) sum_of_squared_deviations += pow(values[i] - mean, 2.0);
-		return sqrt(sum_of_squared_deviations / number_of_values_to_use);
+		return sqrt(sum_of_squared_deviations / (number_of_values_to_use - 1.0));
 	}
 	else
 	{
@@ -124,7 +124,7 @@ double TimeSeries::correlation(TimeSeries& ts)
 		{
 			sum_product_deviations += ((values[i] - mean1) / stdev1 * (ts.getValueByIndex(i) - mean2) / stdev2);
 		}
-		return sum_product_deviations / (number_of_values);// -1.0);	// Without the -1, results are identical to Excel
+		return sum_product_deviations / (number_of_values - 1.0);
 	}
 	else
 	{

@@ -132,3 +132,59 @@ double TimeSeries::correlation(TimeSeries& ts)
 		return 0.0;
 	}
 }
+
+// Get the slope linear regression coefficient with respect to another time series
+double TimeSeries::linear_regression_slope(TimeSeries& ts)
+{
+	// Needed variables
+	double sum1(0.0), sum2(0.0), sum_products(0.0), sum_squares(0.0);
+
+	// Get the maximum number of values that can be used in calculating the correlation
+	int number_of_values = min(TimeSeries::size(), ts.size());
+
+	// At least two values are required to calculate slope
+	if (number_of_values >= 2)
+	{
+		// Calculate necessary values
+		for (int i = 0; i < number_of_values; i++)
+		{
+			sum1 += values[i];
+			sum2 += ts.getValueByIndex(i);
+			sum_products += (values[i] * ts.getValueByIndex(i));
+			sum_squares += pow(values[i], 2.0);
+		}
+		return (number_of_values*sum_products - sum1*sum2) / (number_of_values*sum_squares - pow(sum1, 2.0));
+	}
+	else
+	{
+		// Return 0 if there are insufficient values
+		return 0.0;
+	}
+}
+
+// Get the intercept linear regression coefficient with respect to another time series
+double TimeSeries::linear_regression_intercept(TimeSeries& ts)
+{
+	// Needed variables
+	double sum1(0.0), sum2(0.0);
+
+	// Get the maximum number of values that can be used in calculating the correlation
+	int number_of_values = min(TimeSeries::size(), ts.size());
+
+	// At least two values are required to calculate slope
+	if (number_of_values >= 2)
+	{
+		// Calculate necessary values
+		for (int i = 0; i < number_of_values; i++)
+		{
+			sum1 += values[i];
+			sum2 += ts.getValueByIndex(i);
+		}
+		return (sum2 - TimeSeries::linear_regression_slope(ts) * sum1) / number_of_values;
+	}
+	else
+	{
+		// Return 0 if there are insufficient values
+		return 0.0;
+	}
+}

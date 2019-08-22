@@ -38,5 +38,11 @@ public:
 
 	// Get the correlation value with respect to another time series
 	double correlation(TimeSeries &ts);
+
+	// Get the slope linear regression coefficient with respect to another time series
+	double linear_regression_slope(TimeSeries& ts);
+
+	// Get the intercept linear regression coefficient with respect to another time series
+	double linear_regression_intercept(TimeSeries& ts);
 };
 

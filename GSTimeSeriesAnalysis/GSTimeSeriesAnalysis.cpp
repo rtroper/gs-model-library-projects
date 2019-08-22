@@ -182,7 +182,7 @@ extern "C" void __declspec(dllexport) GetTimeSeriesCorrelation(int methodID, int
 		outargs[0] = 2.0;
 
 		// Return the value of the correlation between the two time series
-		outargs[1] = 1.0;
+		outargs[1] = 3.0;
 		break;
 
 		// Normal calculation.
@@ -208,6 +208,8 @@ extern "C" void __declspec(dllexport) GetTimeSeriesCorrelation(int methodID, int
 
 		// Calculate and return the correlation of values in the two time series
 		outargs[0] = ts1->correlation(*ts2);
+		outargs[1] = ts1->linear_regression_slope(*ts2);
+		outargs[2] = ts1->linear_regression_intercept(*ts2);
 
 		// Increment the time series index
 		time_index += 1.0;

@@ -252,7 +252,7 @@ extern "C" void __declspec(dllexport) GetTimeSeriesCorrelation(int methodID, int
 	}
 }
 
-// Calculate the auto-correlation for a given time series
+// Calculate the auto-correlation for a given time series and specified shift or offset
 //-----------------------------------------------------------------------------------------------
 extern "C" void __declspec(dllexport) GetTimeSeriesAutoCorrelation(int methodID, int* status, double* inargs, double* outargs)
 {

@@ -119,6 +119,12 @@ double TimeSeries::correlation(TimeSeries& ts)
 		double stdev1 = stdev(number_of_values);
 		double stdev2 = ts.stdev(number_of_values);
 
+		// If either standard deviation is 0, correlation cannot be calculated
+		if ((stdev1 <= 0.0) || (stdev2 <= 0.0))
+		{
+			return 0.0;
+		}
+
 		// Calculate the sum of the products of normalized deviations from means and return correlation
 		for (int i = 0; i < number_of_values; i++)
 		{

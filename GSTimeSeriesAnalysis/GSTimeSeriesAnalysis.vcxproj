@@ -93,7 +93,7 @@
       <PreprocessorDefinitions>WIN32;NDEBUG;GSTIMESERIESANALYSIS_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir)TimeSeries</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)TimeSeriesAnalysis</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -112,7 +112,7 @@
       <PreprocessorDefinitions>WIN32;_DEBUG;GSTIMESERIESANALYSIS_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir)TimeSeries</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)TimeSeriesAnalysis</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -129,7 +129,7 @@
       <PreprocessorDefinitions>_DEBUG;GSTIMESERIESANALYSIS_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir)TimeSeries</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)TimeSeriesAnalysis</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -148,7 +148,7 @@
       <PreprocessorDefinitions>NDEBUG;GSTIMESERIESANALYSIS_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir)TimeSeries</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)TimeSeriesAnalysis</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -173,8 +173,8 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\TimeSeries\TimeSeries.vcxproj">
-      <Project>{e327644e-1d06-411d-8dcb-a33a112b137f}</Project>
+    <ProjectReference Include="..\TimeSeriesAnalysis\TimeSeriesAnalysis.vcxproj">
+      <Project>{8d91665b-db32-4b3d-8e74-79cdc8518ed6}</Project>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

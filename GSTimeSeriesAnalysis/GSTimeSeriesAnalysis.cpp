@@ -29,14 +29,6 @@ enum TSDefinitionConstants
 	TS_DATA_START_IDX = 8
 };
 
-TimeSeries* ts4;		// Use only for function GetTimeSeriesAutoCorrelation
-TimeSeries* ts5;		// Use only for function GetTimeSeriesAutoCorrelation
-
-int initialized3 = -1;	// Set to a value >= 0 on the first call to GetTimeSeriesAutoCorrelation
-
-double time_index3;		// Use in functions where time values do not matter (use for GetTimeSeriesAutoCorrelation)
-int counter;			// Use only in GetTimeSeriesAutoCorrelation
-
 //  XFStatusID (below) identifies the return codes for external functions. 
 //      
 //    XF_SUCCESS          – Call completed successfully. 
@@ -101,7 +93,7 @@ extern "C" void __declspec(dllexport) GetTimeSeriesStatistics(int methodID, int*
 	// No input arguments are passed on this call.
 	// outargs[0] is set equal to the external fcn version
 	case  XF_REP_VERSION:
-		outargs[0] = 1.01;
+		outargs[0] = 1.1;
 		break;
 
 		// External fcn reports the number of input and output arguments
@@ -109,8 +101,8 @@ extern "C" void __declspec(dllexport) GetTimeSeriesStatistics(int methodID, int*
 		// outargs[1] is set equal to the # of output arguments
 	case  XF_REP_ARGUMENTS:
 		// Two values from GoldSim are expected when this function is called
-		// The first value is designated to specify a numerical code for missing values in the time series
-		// The second value is the first value in the time series definition
+		// The first input is the time series definition
+		// The second input is designated to specify a numerical code for missing values in the time series
 		outargs[0] = 2.0;
 
 		// For now, there are two return values, the mean and standard deviation of the time series
@@ -126,23 +118,25 @@ extern "C" void __declspec(dllexport) GetTimeSeriesStatistics(int methodID, int*
 			// Set 'initialized' >= 0 so that this block is only executed on the first call to the DLL
 			TSStatistics::initialized = 1;
 
-			// Initialize the time series and specify missing value code
+			// Initialize the time series
 			TSStatistics::ts = new TimeSeries();
-			TSStatistics::ts->setMissingValueCode(inargs[0]);
 
 			// Confirm that GoldSim is providing a time series definition (if so, load times and values of the time series definition)
 			// Note that a value of 20 is a necessary but insufficient requirement (i.e. a minimum requirement)
 			// for this to be a time series definition
-			if (int(inargs[TS_START_IDX+1]) == 20)
+			if (size_t(inargs[TS_START_IDX]) == 20)
 			{
 				// Assume that this is a time series definition and get the number of data points
-				int number_of_data_points = int(inargs[TS_SIZE_IDX+1]);
+				size_t number_of_data_points = size_t(inargs[TS_SIZE_IDX]);
 
 				// Load time and data values
-				for (int i = 0; i < number_of_data_points; i++)
+				for (size_t i = 0; i < number_of_data_points; i++)
 				{
-					TSStatistics::ts->addTimepoint(inargs[TS_DATA_START_IDX + 1 + i], inargs[TS_DATA_START_IDX + 1 + number_of_data_points + i]);
+					TSStatistics::ts->addTimepoint(inargs[TS_DATA_START_IDX + i], inargs[TS_DATA_START_IDX + number_of_data_points + i]);
 				}
+
+				// Specify the missing value code
+				TSStatistics::ts->setMissingValueCode(inargs[TS_DATA_START_IDX + 2 * number_of_data_points]);
 			}
 		}
 
@@ -198,7 +192,7 @@ extern "C" void __declspec(dllexport) GetTimeSeriesCorrelation(int methodID, int
 	// No input arguments are passed on this call.
 	// outargs[0] is set equal to the external fcn version
 	case  XF_REP_VERSION:
-		outargs[0] = 1.01;
+		outargs[0] = 1.1;
 		break;
 
 		// External fcn reports the number of input and output arguments
@@ -206,7 +200,7 @@ extern "C" void __declspec(dllexport) GetTimeSeriesCorrelation(int methodID, int
 		// outargs[1] is set equal to the # of output arguments
 	case  XF_REP_ARGUMENTS:
 		// Three values from GoldSim are expected on each call to this function
-		// The third value is designated to specify a numerical code for missing values in the time series
+		// The third value is designated to specify a numerical code for missing values in the two time series
 		outargs[0] = 3.0;
 
 		// Return the value of the correlation between the two time series 
@@ -227,38 +221,38 @@ extern "C" void __declspec(dllexport) GetTimeSeriesCorrelation(int methodID, int
 			TSCorrelation::ts1 = new TimeSeries();
 			TSCorrelation::ts2 = new TimeSeries();
 
-			// Specify missing value codes
-			TSCorrelation::ts1->setMissingValueCode(inargs[0]);
-			TSCorrelation::ts2->setMissingValueCode(inargs[0]);
-
 			// Confirm that GoldSim is providing a time series definition (if so, load times and values of the time series definition)
 			// Note that a value of 20 is a necessary but insufficient requirement (i.e. a minimum requirement)
 			// for this to be a time series definition
-			if (int(inargs[TS_START_IDX + 1]) == 20)
+			if (size_t(inargs[TS_START_IDX]) == 20)
 			{
 				// Assume that this is a time series definition and get the number of data points
-				int number_of_data_points1 = int(inargs[TS_SIZE_IDX + 1]);
+				size_t number_of_data_points1 = size_t(inargs[TS_SIZE_IDX]);
 
 				// Load time and data values
-				for (int i = 0; i < number_of_data_points1; i++)
+				for (size_t i = 0; i < number_of_data_points1; i++)
 				{
-					TSCorrelation::ts1->addTimepoint(inargs[TS_DATA_START_IDX + 1 + i], inargs[TS_DATA_START_IDX + 1 + number_of_data_points1 + i]);
+					TSCorrelation::ts1->addTimepoint(inargs[TS_DATA_START_IDX + i], inargs[TS_DATA_START_IDX + number_of_data_points1 + i]);
 				}
 
 				// Now, confirm that the next index after the first time series definition also contains 20
 				// If so, assume that another time series definition follows and load times and values
-				if (int(inargs[TS_DATA_START_IDX + 1 + 2 * number_of_data_points1]) == 20)
+				if (size_t(inargs[TS_DATA_START_IDX + 2 * number_of_data_points1]) == 20)
 				{
 					// Calculate indexes for retrieving information about the second time series definition
-					int ts2_size_idx = TS_DATA_START_IDX + 1 + 2 * number_of_data_points1 + TS_SIZE_IDX;
-					int number_of_data_points2 = int(inargs[ts2_size_idx]);
-					int ts2_data_start_idx = ts2_size_idx + 1;
+					size_t ts2_size_idx = TS_DATA_START_IDX + 2 * number_of_data_points1 + TS_SIZE_IDX;
+					size_t number_of_data_points2 = size_t(inargs[ts2_size_idx]);
+					size_t ts2_data_start_idx = ts2_size_idx + 1;
 
 					// Load time and data values
-					for (int i = 0; i < number_of_data_points2; i++)
+					for (size_t i = 0; i < number_of_data_points2; i++)
 					{
 						TSCorrelation::ts2->addTimepoint(inargs[ts2_data_start_idx + i], inargs[ts2_data_start_idx + number_of_data_points2 + i]);
 					}
+
+					// Specify missing value codes
+					TSCorrelation::ts1->setMissingValueCode(inargs[ts2_data_start_idx + 2 * number_of_data_points2]);
+					TSCorrelation::ts2->setMissingValueCode(inargs[ts2_data_start_idx + 2 * number_of_data_points2]);
 				}
 			}
 		}
@@ -292,12 +286,19 @@ extern "C" void __declspec(dllexport) GetTimeSeriesCorrelation(int methodID, int
 	}
 }
 
-// Calculate the auto-correlation for a given time series and specified shift or offset
+// Reserved for function GetTimeSeriesAutoCorrelation
+namespace TSAutoCorrelation
+{
+	TimeSeries* ts;			// Stores series times and values
+	int initialized = -1;	// Set to a value >= 0 on the first call to the function
+}
+
+// Calculate the auto-correlation for a given time series and specified shift or offset (must be converted to seconds in GoldSim)
 //-----------------------------------------------------------------------------------------------
 extern "C" void __declspec(dllexport) GetTimeSeriesAutoCorrelation(int methodID, int* status, double* inargs, double* outargs)
 {
 	*status = XF_SUCCESS;
-	//double current_x;
+	double time_shift = 0.0;
 
 	switch (methodID)
 	{
@@ -312,17 +313,16 @@ extern "C" void __declspec(dllexport) GetTimeSeriesAutoCorrelation(int methodID,
 	// No input arguments are passed on this call.
 	// outargs[0] is set equal to the external fcn version
 	case  XF_REP_VERSION:
-		outargs[0] = 1.01;
+		outargs[0] = 1.1;
 		break;
 
 		// External fcn reports the number of input and output arguments
 		// outargs[0] is set equal to the # of inputs arguments
 		// outargs[1] is set equal to the # of output arguments
 	case  XF_REP_ARGUMENTS:
-		// Three values from GoldSim are expected on each call to this function
-		// The first value is the current value of the time series
-		// The second value is the shift for the auto-correlation calculation
-		// The third value is designated to specify a numerical code for missing values in the time series
+		// Three values from GoldSim are expected: The first is a time series definition, the second 
+		// is a value specifying the shift for the auto-correlation calculation (in seconds), and the 
+		// third is designated to specify a numerical code for missing values in the time series
 		outargs[0] = 3.0;
 
 		// Return the value of the auto-correlation of the time series
@@ -332,42 +332,40 @@ extern "C" void __declspec(dllexport) GetTimeSeriesAutoCorrelation(int methodID,
 		// Normal calculation.
 		// Results are returned as outarg[0], outarg[1], etc. depending on number of outputs
 	case  XF_CALCULATE:
+
 		// Initialize global variables
-		if (initialized3 < 0)
+		if (TSAutoCorrelation::initialized < 0)
 		{
-			// Initialize time index
-			time_index3 = 0.0;
-
-			// Initialize counter
-			counter = 0;
-
 			// Set 'initialized' >= 0 so that this block is only executed on the first call to the DLL
-			initialized3 = 1;
+			TSAutoCorrelation::initialized = 1;
 
-			// Initialize the two time series
-			ts4 = new TimeSeries();
-			ts5 = new TimeSeries();
-		}
+			// Initialize the time series
+			TSAutoCorrelation::ts = new TimeSeries();
 
-		// Add new time point to the time series only if it is not a missing value at the current time point
-		if ( inargs[0] > inargs[2] + 1.0e-6 )
-		{
-			// Add time point and increment counter
-			ts4->addTimepoint(time_index3, inargs[0]);
-			counter++;
-
-			// Add time point from ts4 to ts5 if counter is >= auto-correlation shift 
-			if (counter > int(inargs[1]))
+			// Confirm that GoldSim is providing a time series definition (if so, load times and values of the time series definition)
+			// Note that a value of 20 is a necessary but insufficient requirement (i.e. a minimum requirement)
+			// for this to be a time series definition
+			if (size_t(inargs[TS_START_IDX]) == 20)
 			{
-				ts5->addTimepoint(time_index3, inargs[0]);
+				// Assume that this is a time series definition and get the number of data points
+				size_t number_of_data_points = size_t(inargs[TS_SIZE_IDX]);
+
+				// Load time and data values
+				for (size_t i = 0; i < number_of_data_points; i++)
+				{
+					TSAutoCorrelation::ts->addTimepoint(inargs[TS_DATA_START_IDX + i], inargs[TS_DATA_START_IDX + number_of_data_points + i]);
+				}
+
+				// Get the time shift value
+				time_shift = inargs[TS_DATA_START_IDX + 2 * number_of_data_points];
+
+				// Specify the missing value code
+				TSAutoCorrelation::ts->setMissingValueCode(inargs[TS_DATA_START_IDX + 2 * number_of_data_points + 1]);
 			}
 		}
 
 		// Calculate and return the correlation of values in the two time series
-		outargs[0] = ts4->correlation(*ts5);
-
-		// Increment the time series index
-		time_index3 += 1.0;
+		outargs[0] = TSAutoCorrelation::ts->autocorrelation(time_shift);
 
 		break;
 
@@ -376,9 +374,8 @@ extern "C" void __declspec(dllexport) GetTimeSeriesAutoCorrelation(int methodID,
 		// No arguments are passed on this call.
 	case  XF_CLEANUP:
 		// Free memory allocated for time series object(s)
-		delete ts4;
-		delete ts5;
-		ts4 = ts5 = 0;
+		delete TSAutoCorrelation::ts;
+		TSAutoCorrelation::ts = 0;
 		break;
 
 		// Error if this point is reached

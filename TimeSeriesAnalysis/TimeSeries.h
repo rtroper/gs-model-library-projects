@@ -54,5 +54,8 @@ public:
 
 	// Get linear regression coefficients (slope and intercept) with respect to another time series
 	std::pair<double, double> linear_regression_coefs(TimeSeries& ts);
+
+	// Get autocorrelation for a specified time shift
+	double autocorrelation(double time_shift);
 };
 

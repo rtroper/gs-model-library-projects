@@ -170,3 +170,36 @@ std::pair<double, double> TimeSeries::linear_regression_coefs(TimeSeries& ts)
 	// Return the linear regression coefficients (slope and intercept)
 	return StatisticsCalculations::linear_regression_coefs(aligned_values.first, aligned_values.second);
 }
+
+double TimeSeries::autocorrelation(double time_shift)
+{
+	// Get time bounds
+	std::pair<double, double> bounds = getTimeBounds();
+
+	// Initialize vectors to store non-missing values and shifted values (not necessary to store time values)
+	std::vector<double> values1;
+	std::vector<double> values2;
+
+	// Store time-shifted values
+	size_t time_idx = 0;
+	while ((time_idx < times.size()) && (times[time_idx] + time_shift <= bounds.second))
+	{
+		// Only get time-shifted value if current value is not missing
+		if (values[time_idx] > missing + TSConstants::SMALL_CONSTANT)
+		{
+			double time_shifted_value = getValueByTime(times[time_idx] + time_shift);
+
+			// Only store value and time-shifted value if the latter is not missing
+			if (time_shifted_value > missing + TSConstants::SMALL_CONSTANT)
+			{
+				values1.push_back(values[time_idx]);
+				values2.push_back(time_shifted_value);
+			}
+		}
+
+		// Increment time index to avoid infinite loop
+		time_idx++;
+	}
+	
+	return StatisticsCalculations::correlation(values1, values2);
+}

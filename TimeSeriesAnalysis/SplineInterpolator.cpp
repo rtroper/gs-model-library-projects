@@ -348,10 +348,22 @@ double SplineInterpolator::interpolate(double x_value)
 {
 	double y_interp = 0.0;
 
+	// This is the reference x value
+	double minimum_x = x[0];
+
+	// Immediately return if x value precedes the lowest stored x value
+	if (x_value < minimum_x) return 0.0;
+
+	// mod the input x value with the maximum x (relative to the reference x) so that values beyond x range are wrapped
+	double adjustment = std::fmod(x_value - minimum_x, x[size_data - 1] - minimum_x);
+
+	// Get the adjusted (wrapped) x value
+	double x_adjusted = minimum_x + adjustment;
+
 	if (method == InterpolationMethod::BasicNonGSL)
 	{
 		// Get i and t values that correspond to the input x value
-		std::pair<int, double> i_and_t = get_i_and_t_values(x_value);
+		std::pair<int, double> i_and_t = get_i_and_t_values(x_adjusted);
 		int i = i_and_t.first;
 		double t = i_and_t.second;
 
@@ -360,9 +372,6 @@ double SplineInterpolator::interpolate(double x_value)
 	}
 	else
 	{
-		// First mod the input x value with the maximum x so that values outside x range are wrapped
-		double x_adjusted = std::fmod(x_value, x[size_data - 1]);
-
 		// Get the interpolated value
 		y_interp = gsl_interp_eval(gsl_interpolator, x.data(), y.data(), x_adjusted, gsl_accelerator);
 	}
@@ -374,10 +383,22 @@ double SplineInterpolator::interpolate_derivative(double x_value)
 {
 	double deriv_interp = 0.0;
 
+	// This is the reference x value
+	double minimum_x = x[0];
+
+	// Immediately return if x value precedes the lowest stored x value
+	if (x_value < minimum_x) return 0.0;
+
+	// mod the input x value with the maximum x (relative to the reference x) so that values beyond x range are wrapped
+	double adjustment = std::fmod(x_value - minimum_x, x[size_data - 1] - minimum_x);
+
+	// Get the adjusted (wrapped) x value
+	double x_adjusted = minimum_x + adjustment;
+
 	if (method == InterpolationMethod::BasicNonGSL)
 	{
 		// Get i and t values that correspond to the input x value
-		std::pair<int, double> i_and_t = get_i_and_t_values(x_value);
+		std::pair<int, double> i_and_t = get_i_and_t_values(x_adjusted);
 		int i = i_and_t.first;
 		double t = i_and_t.second;
 
@@ -386,9 +407,6 @@ double SplineInterpolator::interpolate_derivative(double x_value)
 	}
 	else
 	{
-		// First mod the input x value with the maximum x so that values outside x range are wrapped
-		double x_adjusted = std::fmod(x_value, x[size_data - 1]);
-
 		// Get the interpolated derivative
 		deriv_interp = gsl_interp_eval_deriv(gsl_interpolator, x.data(), y.data(), x_adjusted, gsl_accelerator);
 	}

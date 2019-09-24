@@ -100,7 +100,7 @@ extern "C" void __declspec(dllexport) GetTimeSeriesStatistics(int methodID, int*
 		// outargs[0] is set equal to the # of inputs arguments
 		// outargs[1] is set equal to the # of output arguments
 	case  XF_REP_ARGUMENTS:
-		// Two values from GoldSim are expected when this function is called
+		// Two inputs from GoldSim are expected when this function is called
 		// The first input is the time series definition
 		// The second input is designated to specify a numerical code for missing values in the time series
 		outargs[0] = 2.0;
@@ -152,7 +152,7 @@ extern "C" void __declspec(dllexport) GetTimeSeriesStatistics(int methodID, int*
 	case  XF_CLEANUP:
 		// Free memory allocated for time series object(s)
 		delete TSStatistics::ts;
-		TSStatistics::ts = 0;
+		TSStatistics::ts = nullptr;
 		break;
 
 		// Error if this point is reached
@@ -199,7 +199,7 @@ extern "C" void __declspec(dllexport) GetTimeSeriesCorrelation(int methodID, int
 		// outargs[0] is set equal to the # of inputs arguments
 		// outargs[1] is set equal to the # of output arguments
 	case  XF_REP_ARGUMENTS:
-		// Three values from GoldSim are expected on each call to this function
+		// Three inputs from GoldSim are expected on each call to this function
 		// The third value is designated to specify a numerical code for missing values in the two time series
 		outargs[0] = 3.0;
 
@@ -274,7 +274,8 @@ extern "C" void __declspec(dllexport) GetTimeSeriesCorrelation(int methodID, int
 		// Free memory allocated for time series object(s)
 		delete TSCorrelation::ts1;
 		delete TSCorrelation::ts2;
-		TSCorrelation::ts1 = TSCorrelation::ts2 = 0;
+		TSCorrelation::ts1 = nullptr;
+		TSCorrelation::ts2 = nullptr;
 		break;
 
 		// Error if this point is reached
@@ -320,7 +321,7 @@ extern "C" void __declspec(dllexport) GetTimeSeriesAutoCorrelation(int methodID,
 		// outargs[0] is set equal to the # of inputs arguments
 		// outargs[1] is set equal to the # of output arguments
 	case  XF_REP_ARGUMENTS:
-		// Three values from GoldSim are expected: The first is a time series definition, the second 
+		// Three inputs from GoldSim are expected: The first is a time series definition, the second 
 		// is a value specifying the shift for the auto-correlation calculation (in seconds), and the 
 		// third is designated to specify a numerical code for missing values in the time series
 		outargs[0] = 3.0;
@@ -375,7 +376,112 @@ extern "C" void __declspec(dllexport) GetTimeSeriesAutoCorrelation(int methodID,
 	case  XF_CLEANUP:
 		// Free memory allocated for time series object(s)
 		delete TSAutoCorrelation::ts;
-		TSAutoCorrelation::ts = 0;
+		TSAutoCorrelation::ts = nullptr;
+		break;
+
+		// Error if this point is reached
+		// This means the switch statement did not provide the cases that GoldSim expected.
+		// The external function must have cases 0, 1, 2, 3 and 99
+	default:
+		*status = XF_FAILURE;
+		break;
+	}
+}
+
+// Reserved for function GetTimeSeriesSplineInterpolation
+namespace TSSplineInterpolation
+{
+	TimeSeries* ts;						// Stores series times and values
+	int initialized = -1;				// Set to a value >= 0 on the first call to the function
+	size_t number_of_data_points = 0;	// Need to preserve this value from time step to time step
+}
+
+// Calculate the spline-interpolated value and derivative (slope) at a specified time (the time must be converted to seconds in GoldSim)
+//-----------------------------------------------------------------------------------------------
+extern "C" void __declspec(dllexport) GetTimeSeriesSplineInterpolation(int methodID, int* status, double* inargs, double* outargs)
+{
+	*status = XF_SUCCESS;
+	double time_point = 0.0;
+	std::pair<double, double> value_and_slope;
+
+	switch (methodID)
+	{
+		// Initialize (called at beginning of each realization)
+		// For example, allocate memory or open files
+		// No arguments are passed on this call
+	case  XF_INITIALIZE:
+		// Initialize global variables
+		break;	// no initialization in this example
+
+	// The external function reports its version
+	// No input arguments are passed on this call.
+	// outargs[0] is set equal to the external fcn version
+	case  XF_REP_VERSION:
+		outargs[0] = 1.1;
+		break;
+
+		// External fcn reports the number of input and output arguments
+		// outargs[0] is set equal to the # of inputs arguments
+		// outargs[1] is set equal to the # of output arguments
+	case  XF_REP_ARGUMENTS:
+		// Three inputs from GoldSim are expected: The first is a time series definition, the second is the
+		// time (in seconds) at which to get the spline-interpolated value and derivate (slope), and the 
+		// third is designated to specify a numerical code for missing values in the time series
+		outargs[0] = 3.0;
+
+		// Return the spline-interpolated value and the derivative at the specified time
+		outargs[1] = 2.0;
+		break;
+
+		// Normal calculation.
+		// Results are returned as outarg[0], outarg[1], etc. depending on number of outputs
+	case  XF_CALCULATE:
+
+		// Initialize global variables
+		if (TSSplineInterpolation::initialized < 0)
+		{
+			// Set 'initialized' >= 0 so that this block is only executed on the first call to the DLL
+			TSSplineInterpolation::initialized = 1;
+
+			// Initialize the time series
+			TSSplineInterpolation::ts = new TimeSeries();
+
+			// Confirm that GoldSim is providing a time series definition (if so, load times and values of the time series definition)
+			// Note that a value of 20 is a necessary but insufficient requirement (i.e. a minimum requirement)
+			// for this to be a time series definition
+			if (size_t(inargs[TS_START_IDX]) == 20)
+			{
+				// Assume that this is a time series definition and get the number of data points
+				TSSplineInterpolation::number_of_data_points = size_t(inargs[TS_SIZE_IDX]);
+
+				// Load time and data values
+				for (size_t i = 0; i < TSSplineInterpolation::number_of_data_points; i++)
+				{
+					TSSplineInterpolation::ts->addTimepoint(inargs[TS_DATA_START_IDX + i], inargs[TS_DATA_START_IDX + TSSplineInterpolation::number_of_data_points + i]);
+				}
+
+				// Specify the missing value code
+				TSSplineInterpolation::ts->setMissingValueCode(inargs[TS_DATA_START_IDX + 2 * TSSplineInterpolation::number_of_data_points + 1]);
+			}
+		}
+
+		// Get the current time (in seconds) at which to get the spline-interpolated value and derivative (slope)
+		time_point = inargs[TS_DATA_START_IDX + 2 * TSSplineInterpolation::number_of_data_points];
+
+		// Calculate and return the correlation of values in the two time series
+		value_and_slope = TSSplineInterpolation::ts->spline_interpolate(time_point);
+		outargs[0] = value_and_slope.first;
+		outargs[1] = value_and_slope.second;
+
+		break;
+
+		// Close any open files
+		// Optionally release any memory that's been allocated
+		// No arguments are passed on this call.
+	case  XF_CLEANUP:
+		// Free memory allocated for time series object(s)
+		delete TSSplineInterpolation::ts;
+		TSSplineInterpolation::ts = nullptr;
 		break;
 
 		// Error if this point is reached

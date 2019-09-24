@@ -67,9 +67,43 @@ std::pair<std::vector<double>, std::vector<double>> TimeSeries::getAlignedValues
 	return aligned_values;
 }
 
-// Default constructor
-TimeSeries::TimeSeries() : missing(-999.0) // Default missing value code
+// This private function is only called when the public spline_interpolate function is called for the first time
+bool TimeSeries::initialize_spline_interpolator()
 {
+	// Initialize return value to true
+	bool success = true;
+
+	// First get non-missing values (and corresponding times)
+	std::vector<double> x_values;
+	std::vector<double> y_values;
+	for (size_t i = 0; i < size(); i++)
+	{
+		// Omit missing values
+		if (values[i] < missing + TSConstants::SMALL_CONSTANT) continue;
+
+		x_values.push_back(times[i]);
+		y_values.push_back(values[i]);
+	}
+
+	// Create spline interpolator (for now, this defaults to the GSL cubic periodic method)
+	sinterpolator = new SplineInterpolator(SplineInterpolator::GSLCubicPeriodic, x_values, y_values);
+
+	// If nullptr then return failure
+	if (sinterpolator == nullptr) return false;
+
+	return success;
+}
+
+// Default constructor
+TimeSeries::TimeSeries() : missing(-999.0), // Default missing value code
+	sinterpolator(nullptr)
+{
+}
+
+TimeSeries::~TimeSeries()
+{
+	delete sinterpolator;
+	sinterpolator = nullptr;
 }
 
 // Add a new time point and value to the time series
@@ -202,4 +236,29 @@ double TimeSeries::autocorrelation(double time_shift)
 	}
 	
 	return StatisticsCalculations::correlation(values1, values2);
+}
+
+// First item in pair is the interpolated value; Second item is the derivative at the time point
+std::pair<double, double> TimeSeries::spline_interpolate(double time)
+{
+	// Initialize interpolated value and slope to missing value
+	std::pair<double, double> sinterp_value;
+	sinterp_value.first = missing;
+	sinterp_value.second = missing;
+
+	// Initialize the spline interpolator, if not already initialized
+	bool success = true;
+	if (sinterpolator == nullptr)
+	{
+		success = initialize_spline_interpolator();
+	}
+
+	// Get the spline-interpolated value
+	if (success)
+	{
+		sinterp_value.first = sinterpolator->interpolate(time);
+		sinterp_value.second = sinterpolator->interpolate_derivative(time);
+	}
+
+	return sinterp_value;
 }

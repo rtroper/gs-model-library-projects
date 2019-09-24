@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include "SplineInterpolator.h"
 
 class TimeSeries
 {
@@ -14,15 +15,24 @@ private:
 	// Missing value code (values <= to this will be treated as 'missing')
 	double missing;
 
+	// Pointer to SplineInterpolator instance
+	SplineInterpolator* sinterpolator;
+
 	// Get the minimum and maximum times in the series
 	std::pair<double, double> getTimeBounds();
 
 	// Get aligned non-missing values (based on time) between 'this' and another time series 
 	std::pair<std::vector<double>, std::vector<double>> getAlignedValues(TimeSeries &ts);
 
+	// Initialize spline interpolator
+	bool initialize_spline_interpolator();
+
 public:
 	// Basic constructor requires no arguments
 	TimeSeries();
+
+	// Destructor to free memory allocated on the heap
+	~TimeSeries();
 
 	// Set the missing value code
 	void setMissingValueCode(double value) { missing = value; };
@@ -57,5 +67,8 @@ public:
 
 	// Get autocorrelation for a specified time shift
 	double autocorrelation(double time_shift);
+
+	// Get the spline-interpolated value and derivative at a supplied time value (times are in seconds)
+	std::pair<double, double> spline_interpolate(double time);
 };
 

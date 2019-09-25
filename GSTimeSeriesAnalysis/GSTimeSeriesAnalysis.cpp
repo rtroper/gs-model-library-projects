@@ -66,6 +66,95 @@ enum XFStatusID
 //    - inargs: array of input arguments
 //    - outargs: this array returns different information for different XFMethod values
 
+// Reserved for function GetTimeSeriesProperties
+namespace TSProperties
+{
+	int initialized = -1;	// Set to a value >= 0 on the first call to the function
+
+	// Initialize return values to 0.0 (seconds)
+	double start_time = 0.0;
+	double end_time = 0.0;
+	double duration = 0.0;
+}
+
+// Return the start time, end time, and duration (all in seconds, so it will need to be converted in GoldSim) for a time series
+//-----------------------------------------------------------------------------------------------
+extern "C" void __declspec(dllexport) GetTimeSeriesProperties(int methodID, int* status, double* inargs, double* outargs)
+{
+	*status = XF_SUCCESS;
+
+	switch (methodID)
+	{
+		// Initialize (called at beginning of each realization)
+		// For example, allocate memory or open files
+		// No arguments are passed on this call
+	case  XF_INITIALIZE:
+		// Initialize global variables
+		break;	// no initialization in this example
+
+	// The external function reports its version
+	// No input arguments are passed on this call.
+	// outargs[0] is set equal to the external fcn version
+	case  XF_REP_VERSION:
+		outargs[0] = 1.1;
+		break;
+
+		// External fcn reports the number of input and output arguments
+		// outargs[0] is set equal to the # of inputs arguments
+		// outargs[1] is set equal to the # of output arguments
+	case  XF_REP_ARGUMENTS:
+		// Only one input from GoldSim is needed, the time series definition
+		outargs[0] = 1.0;
+
+		// Three return values: start time, end time, and duration (all in seconds, which will need to be converted in GoldSim)
+		outargs[1] = 3.0;
+		break;
+
+		// Normal calculation.
+		// Results are returned as outarg[0], outarg[1], etc. depending on number of outputs
+	case  XF_CALCULATE:
+		// Initialize global variables
+		if (TSProperties::initialized < 0)
+		{
+			// Set 'initialized' >= 0 so that this block is only executed on the first call to the DLL
+			TSProperties::initialized = 1;
+
+			// Confirm that GoldSim is providing a time series definition; Note that a value of 20 is a necessary
+			// but insufficient requirement (i.e. a minimum requirement) for this to be a time series definition
+			if (size_t(inargs[TS_START_IDX]) == 20)
+			{
+				// Assume that this is a time series definition and get the number of data points
+				size_t number_of_data_points = size_t(inargs[TS_SIZE_IDX]);
+
+				// Calculate time series properties (start time, end time, and duration)
+				TSProperties::start_time = inargs[TS_DATA_START_IDX];
+				TSProperties::end_time = inargs[TS_DATA_START_IDX + number_of_data_points - 1];
+				TSProperties::duration = TSProperties::end_time - TSProperties::start_time;
+			}
+		}
+
+		// Return time series properties (start time, end time, and duration)
+		outargs[0] = TSProperties::start_time;
+		outargs[1] = TSProperties::end_time;
+		outargs[2] = TSProperties::duration;
+
+		break;
+
+		// Close any open files
+		// Optionally release any memory that's been allocated
+		// No arguments are passed on this call.
+	case  XF_CLEANUP:
+		break;
+
+		// Error if this point is reached
+		// This means the switch statement did not provide the cases that GoldSim expected.
+		// The external function must have cases 0, 1, 2, 3 and 99
+	default:
+		*status = XF_FAILURE;
+		break;
+	}
+}
+
 // Reserved for function GetTimeSeriesStatistics
 namespace TSStatistics
 {
@@ -78,7 +167,6 @@ namespace TSStatistics
 extern "C" void __declspec(dllexport) GetTimeSeriesStatistics(int methodID, int* status, double* inargs, double* outargs)
 {
 	*status = XF_SUCCESS;
-	//double current_x;
 
 	switch (methodID)
 	{

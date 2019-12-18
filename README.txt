@@ -1,7 +1,7 @@
 ================== GSModelLibraryProjects Build Instructions ==================
 
 -- Created: 12/17/2019
--- Last Updated: 12/17/2019
+-- Last Updated: 12/18/2019
 
 The GS Model Library project depends on the GSL (GNU Scientific Library), which can be obtained from this GitHub repository: https://github.com/BrianGladman/gsl. For additional information about the GSL, see https://www.gnu.org/software/gsl/. For information about building the GSL on Windows, see https://www.gnu.org/software/gsl/extras/native_win_builds.html.
 
@@ -29,4 +29,4 @@ The build process for GSL will probably take 5 - 10 minutes. Once it has finishe
 
 The 32-bit binaries can be found in the 'Debug' and 'Release' folders at the root level (where the .sln file is located). The 64-bit binaries can be found in the 'Debug' and 'Release' folders inside the x64 subfolder. 
 
-The GSSplineInterpolator.dll and GSTimeSeriesAnalysis.dll files can be used with GoldSim.
+The GSSplineInterpolator.dll and GSTimeSeriesAnalysis.dll files can be used with GoldSim. Copy these to the 'GoldSimModels' subfolder and run the model examples therein to confirm that everything works. Open the External Elements in the models and go to the 'Interface' tab to see the required inputs and the outputs of the DLLs.
